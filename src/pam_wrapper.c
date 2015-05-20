@@ -28,6 +28,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <dlfcn.h>
 
@@ -167,6 +168,7 @@ struct pwrap {
 	bool enabled;
 	bool initialised;
 	char *config_dir;
+	char *pam_library;
 };
 
 static struct pwrap pwrap;
@@ -283,13 +285,117 @@ static int libpam_pam_end(pam_handle_t *pamh, int pam_status)
  * PWRAP INIT
  *********************************************************/
 
+#define BUFFER_SIZE 32768
+
+/* copy file from src to dst, overwrites dst */
+static int p_copy(const char *src, const char *dst, const char *pdir, mode_t mode)
+{
+	int srcfd = -1;
+	int dstfd = -1;
+	int rc = -1;
+	ssize_t bread, bwritten;
+	struct stat sb;
+	char buf[BUFFER_SIZE];
+	int cmp;
+
+	cmp = strcmp(src, dst);
+	if (cmp == 0) {
+		return -1;
+	}
+
+	if (lstat(src, &sb) < 0) {
+		return -1;
+	}
+
+	if (S_ISDIR(sb.st_mode)) {
+		errno = EISDIR;
+		return -1;
+	}
+
+	if (mode == 0) {
+		mode = sb.st_mode;
+	}
+
+	if (lstat(dst, &sb) == 0) {
+		if (S_ISDIR(sb.st_mode)) {
+			errno = EISDIR;
+			return -1;
+		}
+	}
+
+	if ((srcfd = open(src, O_RDONLY, 0)) < 0) {
+		rc = -1;
+		goto out;
+	}
+
+	if ((dstfd = open(dst, O_CREAT|O_WRONLY|O_TRUNC, mode)) < 0) {
+		rc = -1;
+		goto out;
+	}
+
+	for (;;) {
+		char *p;
+		bread = read(srcfd, buf, BUFFER_SIZE);
+		if (bread == 0) {
+			/* done */
+			break;
+		} else if (bread < 0) {
+			errno = ENODATA;
+			rc = -1;
+			goto out;
+		}
+
+		/* EXTRA UGLY HACK */
+		if (pdir != NULL) {
+			p = buf;
+
+			while (p < buf + BUFFER_SIZE) {
+				if (*p == '/') {
+					cmp = memcmp(p, "/etc/pam.d", 10);
+					if (cmp == 0) {
+						memcpy(p, pdir, 10);
+					}
+				}
+				p++;
+			}
+		}
+
+		bwritten = write(dstfd, buf, bread);
+		if (bwritten < 0) {
+			errno = ENODATA;
+			rc = -1;
+			goto out;
+		}
+
+		if (bread != bwritten) {
+			errno = EFAULT;
+			rc = -1;
+			goto out;
+		}
+	}
+
+	rc = 0;
+out:
+	close(srcfd);
+	close(dstfd);
+	if (rc < 0) {
+		unlink(dst);
+	}
+
+	return rc;
+}
+
 static void pwrap_init(void)
 {
-	char tmp_config_dir[] = "/tmp/pamd.X";
+	char tmp_config_dir[] = "/tmp/pam.X";
 	size_t len = strlen(tmp_config_dir);
 	const char *env;
 	uint32_t i;
 	int rc;
+	const char *suffix = "";
+	char pam_library[128] = { 0 };
+	char pam_path[1024] = { 0 };
+	ssize_t ret;
 
 	if (pwrap.initialised) {
 		return;
@@ -335,6 +441,56 @@ static void pwrap_init(void)
 			  "Failed to create pam_wrapper config dir: %s - %s",
 			  tmp_config_dir, strerror(errno));
 	}
+
+	snprintf(pam_path,
+		 sizeof(pam_path),
+		 "%s/%s",
+		 pwrap.config_dir,
+		 LIBPAM_NAME);
+
+	pwrap.pam_library = strdup(pam_path);
+	if (pwrap.pam_library == NULL) {
+		PWRAP_LOG(PWRAP_LOG_ERROR, "No memory");
+		exit(1);
+	}
+
+	/* copy libpam.so */
+	if (sizeof(void *) == 8) {
+		suffix = "64";
+	}
+
+	snprintf(pam_path,
+		 sizeof(pam_path),
+		 "/usr/lib%s/%s",
+		 suffix,
+		 LIBPAM_NAME);
+	PWRAP_LOG(PWRAP_LOG_TRACE,
+		  "PAM path: %s",
+		  pam_path);
+
+	ret = readlink(pam_path, pam_library, sizeof(pam_library));
+	PWRAP_LOG(PWRAP_LOG_TRACE,
+		  "PAM library: %s",
+		  pam_library);
+	if (ret <= 0) {
+		PWRAP_LOG(PWRAP_LOG_ERROR, "Failed to read %s link", LIBPAM_NAME);
+		exit(1);
+	}
+
+	snprintf(pam_path,
+		 sizeof(pam_path),
+		 "/usr/lib%s/%s",
+		 suffix,
+		 pam_library);
+
+	PWRAP_LOG(PWRAP_LOG_DEBUG, "Copy %s to %s", pam_path, pwrap.pam_library);
+	rc = p_copy(pam_path, pwrap.pam_library, pwrap.config_dir, 0644);
+	if (rc != 0) {
+		PWRAP_LOG(PWRAP_LOG_ERROR, "Failed to copy %s", LIBPAM_NAME);
+		exit(1);
+	}
+
+	/* modify libpam.so */
 
 	pwrap.initialised = true;
 
