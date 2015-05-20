@@ -27,6 +27,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <dirent.h>
 #include <unistd.h>
 #include <dlfcn.h>
 
@@ -367,13 +368,86 @@ void pwrap_constructor(void)
  * DESTRUCTOR
  ***************************/
 
+static int p_rmdirs(const char *path) {
+	DIR *d;
+	struct dirent *dp;
+	struct stat sb;
+	char *fname;
+
+	if ((d = opendir(path)) != NULL) {
+		while(stat(path, &sb) == 0) {
+			/* if we can remove the directory we're done */
+			if (rmdir(path) == 0) {
+				break;
+			}
+			switch (errno) {
+				case ENOTEMPTY:
+				case EEXIST:
+				case EBADF:
+					break; /* continue */
+				default:
+					closedir(d);
+					return 0;
+			}
+
+			while ((dp = readdir(d)) != NULL) {
+				size_t len;
+				/* skip '.' and '..' */
+				if (dp->d_name[0] == '.' &&
+				    (dp->d_name[1] == '\0' ||
+				     (dp->d_name[1] == '.' && dp->d_name[2] == '\0'))) {
+					continue;
+				}
+
+				len = strlen(path) + strlen(dp->d_name) + 2;
+				fname = malloc(len);
+				if (fname == NULL) {
+					return -1;
+				}
+				snprintf(fname, len, "%s/%s", path, dp->d_name);
+
+				/* stat the file */
+				if (lstat(fname, &sb) != -1) {
+					if (S_ISDIR(sb.st_mode) && !S_ISLNK(sb.st_mode)) {
+						if (rmdir(fname) < 0) { /* can't be deleted */
+							if (errno == EACCES) {
+								closedir(d);
+								SAFE_FREE(fname);
+								return -1;
+							}
+							p_rmdirs(fname);
+						}
+					} else {
+						unlink(fname);
+					}
+				} /* lstat */
+				SAFE_FREE(fname);
+			} /* readdir */
+
+			rewinddir(d);
+		}
+	} else {
+		return -1;
+	}
+
+	closedir(d);
+	return 0;
+}
+
 /*
  * This function is called when the library is unloaded and makes sure that
  * resources are freed.
  */
 void pwrap_destructor(void)
 {
+	const char *env;
+
 	if (pwrap.libpam.handle != NULL) {
 		dlclose(pwrap.libpam.handle);
+	}
+
+	env = getenv("PAM_WRAPPER_KEEP_DIR");
+	if (env == NULL || env[0] != '1') {
+		p_rmdirs(pwrap.config_dir);
 	}
 }
