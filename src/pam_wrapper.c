@@ -24,7 +24,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <dlfcn.h>
 
@@ -190,6 +192,7 @@ struct pwrap {
 
 	bool enabled;
 	bool initialised;
+	char *config_dir;
 };
 
 static struct pwrap pwrap;
@@ -308,13 +311,56 @@ static int libpam_pam_end(pam_handle_t *pamh, int pam_status)
 
 static void pwrap_init(void)
 {
+	char tmp_config_dir[] = "/tmp/pamd.X";
+	size_t len = strlen(tmp_config_dir);
 	const char *env;
+	uint32_t i;
+	int rc;
 
 	if (pwrap.initialised) {
 		return;
 	}
 
 	PWRAP_LOG(PWRAP_LOG_DEBUG, "Initialize pam_wrapper");
+
+	for (i = 0; i < 10; i++) {
+		struct stat sb;
+
+		tmp_config_dir[len - 1] = (char)(i + 48);
+		PWRAP_LOG(PWRAP_LOG_TRACE,
+			  "Check pam_wrapper dir %s already exists",
+			  tmp_config_dir);
+		rc = lstat(tmp_config_dir, &sb);
+		if (rc == 0) {
+			continue;
+		} else if (errno == ENOENT) {
+			break;
+		}
+	}
+
+	if (i == 10) {
+		PWRAP_LOG(PWRAP_LOG_ERROR,
+			  "Failed to find a possible path to create pam_wrapper config dir: %s",
+			  tmp_config_dir);
+		exit(1);
+	}
+
+	pwrap.config_dir = strdup(tmp_config_dir);
+	if (pwrap.config_dir == NULL) {
+		PWRAP_LOG(PWRAP_LOG_ERROR,
+			  "No memory");
+		exit(1);
+	}
+	PWRAP_LOG(PWRAP_LOG_TRACE,
+		  "pam_wrapper config dir: %s",
+		  tmp_config_dir);
+
+	rc = mkdir(pwrap.config_dir, 0755);
+	if (rc != 0) {
+		PWRAP_LOG(PWRAP_LOG_ERROR,
+			  "Failed to create pam_wrapper config dir: %s - %s",
+			  tmp_config_dir, strerror(errno));
+	}
 
 	pwrap.initialised = true;
 
