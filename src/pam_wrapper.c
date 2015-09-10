@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2009      Andrew Tridgell
- * Copyright (c) 2011-2013 Andreas Schneider <asn@samba.org>
+ * Copyright (c) 2015 Andreas Schneider <asn@samba.org>
+ * Copyright (c) 2015 Jakub Hrozek <jakub.hrozek@posteo.se>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,6 +31,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <dlfcn.h>
+
+#include <ftw.h>
 
 #ifdef HAVE_SECURITY_PAM_APPL_H
 #include <security/pam_appl.h>
@@ -175,6 +177,8 @@ typedef int (*__libpam_pam_start)(const char *service_name,
 
 typedef int (*__libpam_pam_end)(pam_handle_t *pamh, int pam_status);
 
+typedef int (*__libpam_pam_authenticate)(pam_handle_t *pamh, int flags);
+
 #define PWRAP_SYMBOL_ENTRY(i) \
 	union { \
 		__libpam_##i f; \
@@ -184,6 +188,7 @@ typedef int (*__libpam_pam_end)(pam_handle_t *pamh, int pam_status);
 struct pwrap_libpam_symbols {
 	PWRAP_SYMBOL_ENTRY(pam_start);
 	PWRAP_SYMBOL_ENTRY(pam_end);
+	PWRAP_SYMBOL_ENTRY(pam_authenticate);
 };
 
 struct pwrap {
@@ -308,6 +313,13 @@ static int libpam_pam_end(pam_handle_t *pamh, int pam_status)
 	return pwrap.libpam.symbols._libpam_pam_end.f(pamh, pam_status);
 }
 
+static int libpam_pam_authenticate(pam_handle_t *pamh, int flags)
+{
+	pwrap_bind_symbol_libpam(pam_authenticate);
+
+	return pwrap.libpam.symbols._libpam_pam_authenticate.f(pamh, flags);
+}
+
 /*********************************************************
  * PWRAP INIT
  *********************************************************/
@@ -410,6 +422,58 @@ out:
 	}
 
 	return rc;
+}
+
+static int copy_ftw(const char *fpath,
+		    const struct stat *sb,
+		    int typeflag,
+		    struct FTW *ftwbuf)
+{
+	int rc;
+	char buf[BUFFER_SIZE];
+
+	switch (typeflag) {
+	case FTW_D:
+	case FTW_DNR:
+		/* We want to copy the directories from this directory */
+		if (ftwbuf->level == 0) {
+			return FTW_CONTINUE;
+		}
+		return FTW_SKIP_SUBTREE;
+	case FTW_F:
+		break;
+	default:
+		return FTW_CONTINUE;
+	}
+
+	rc = snprintf(buf, BUFFER_SIZE, "%s/%s", pwrap.config_dir, fpath + ftwbuf->base);
+	if (rc >= BUFFER_SIZE) {
+		return FTW_STOP;
+	}
+
+	PWRAP_LOG(PWRAP_LOG_TRACE, "Copying %s", fpath);
+	rc = p_copy(fpath, buf, NULL, sb->st_mode);
+	if (rc != 0) {
+		return FTW_STOP;
+	}
+
+	return FTW_CONTINUE;
+}
+
+static int copy_confdir(const char *src)
+{
+	int rc;
+
+	PWRAP_LOG(PWRAP_LOG_DEBUG,
+		  "Copy config files from %s to %s",
+		  src,
+		  pwrap.config_dir);
+	rc = nftw(src, copy_ftw, 1, FTW_ACTIONRETVAL);
+	if (rc != 0) {
+		return -1;
+	}
+
+	return 0;
 }
 
 static void pwrap_init(void)
@@ -527,6 +591,18 @@ static void pwrap_init(void)
 		pwrap.enabled = true;
 	}
 
+	env = getenv("PAM_WRAPPER_CONFDIR");
+	if (env == NULL) {
+		PWRAP_LOG(PWRAP_LOG_ERROR, "No config file");
+		exit(1);
+	}
+
+	rc = copy_confdir(env);
+	if (rc != 0) {
+		PWRAP_LOG(PWRAP_LOG_ERROR, "Failed to copy config files");
+		exit(1);
+	}
+
 	PWRAP_LOG(PWRAP_LOG_DEBUG, "Succeccfully initialized pam_wrapper");
 }
 
@@ -545,6 +621,51 @@ void pwrap_constructor(void)
 	 * for main process.
 	 */
 	pwrap_init();
+}
+
+
+static int pwrap_pam_start(const char *service_name,
+			   const char *user,
+			   const struct pam_conv *pam_conversation,
+			   pam_handle_t **pamh)
+{
+	PWRAP_LOG(PWRAP_LOG_TRACE, "pam_start called");
+	return libpam_pam_start(service_name,
+				user,
+				pam_conversation,
+				pamh);
+}
+
+
+int pam_start(const char *service_name,
+	      const char *user,
+	      const struct pam_conv *pam_conversation,
+	      pam_handle_t **pamh)
+{
+	return pwrap_pam_start(service_name, user, pam_conversation, pamh);
+}
+
+static int pwrap_pam_end(pam_handle_t *pamh, int pam_status)
+{
+	PWRAP_LOG(PWRAP_LOG_TRACE, "pam_end status=%d", pam_status);
+	return libpam_pam_end(pamh, pam_status);
+}
+
+
+int pam_end(pam_handle_t *pamh, int pam_status)
+{
+	return pwrap_pam_end(pamh, pam_status);
+}
+
+static int pwrap_pam_authenticate(pam_handle_t *pamh, int flags)
+{
+	PWRAP_LOG(PWRAP_LOG_TRACE, "pwrap_pam_authenticate flags=%d", flags);
+	return libpam_pam_authenticate(pamh, flags);
+}
+
+int pam_authenticate(pam_handle_t *pamh, int flags)
+{
+	return pwrap_pam_authenticate(pamh, flags);
 }
 
 /****************************
