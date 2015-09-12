@@ -198,7 +198,6 @@ static void *pwrap_load_lib_handle(enum pwrap_lib lib)
 {
 	int flags = RTLD_LAZY;
 	void *handle = NULL;
-	int i;
 
 #ifdef RTLD_DEEPBIND
 	flags |= RTLD_DEEPBIND;
@@ -208,12 +207,17 @@ static void *pwrap_load_lib_handle(enum pwrap_lib lib)
 	case PWRAP_LIBPAM:
 		handle = pwrap.libpam.handle;
 		if (handle == NULL) {
-			for (i = 10; i >= 0; i--) {
-				handle = dlopen(LIBPAM_NAME, flags);
-				if (handle != NULL) {
-					break;
-				}
-			}
+			char libpam_path[PATH_MAX];
+
+			snprintf(libpam_path,
+				 sizeof(libpam_path),
+				 "%s/libpam.so",
+				 pwrap.config_dir);
+
+			handle = dlopen(libpam_path, flags);
+			if (handle != NULL) {
+				break;
+		}
 
 			pwrap.libpam.handle = handle;
 		}
@@ -221,14 +225,10 @@ static void *pwrap_load_lib_handle(enum pwrap_lib lib)
 	}
 
 	if (handle == NULL) {
-#ifdef RTLD_NEXT
-		handle = pwrap.libpam.handle = RTLD_NEXT;
-#else
 		PWRAP_LOG(PWRAP_LOG_ERROR,
 			  "Failed to dlopen library: %s\n",
 			  dlerror());
 		exit(-1);
-#endif
 	}
 
 	return handle;
