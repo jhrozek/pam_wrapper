@@ -1,0 +1,5 @@
+auth		required	@CMAKE_CURRENT_BINARY_DIR@/pam_success.so
+account		required	@CMAKE_CURRENT_BINARY_DIR@/pam_success.so
+password	required	@CMAKE_CURRENT_BINARY_DIR@/pam_success.so
+session		required	@CMAKE_CURRENT_BINARY_DIR@/pam_success.so
+
