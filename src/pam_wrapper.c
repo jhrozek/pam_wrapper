@@ -152,6 +152,8 @@ typedef int (*__libpam_pam_end)(pam_handle_t *pamh, int pam_status);
 
 typedef int (*__libpam_pam_authenticate)(pam_handle_t *pamh, int flags);
 
+typedef int (*__libpam_pam_acct_mgmt)(pam_handle_t *pamh, int flags);
+
 #define PWRAP_SYMBOL_ENTRY(i) \
 	union { \
 		__libpam_##i f; \
@@ -162,6 +164,7 @@ struct pwrap_libpam_symbols {
 	PWRAP_SYMBOL_ENTRY(pam_start);
 	PWRAP_SYMBOL_ENTRY(pam_end);
 	PWRAP_SYMBOL_ENTRY(pam_authenticate);
+	PWRAP_SYMBOL_ENTRY(pam_acct_mgmt);
 };
 
 struct pwrap {
@@ -291,6 +294,13 @@ static int libpam_pam_authenticate(pam_handle_t *pamh, int flags)
 	pwrap_bind_symbol_libpam(pam_authenticate);
 
 	return pwrap.libpam.symbols._libpam_pam_authenticate.f(pamh, flags);
+}
+
+static int libpam_pam_acct_mgmt(pam_handle_t *pamh, int flags)
+{
+	pwrap_bind_symbol_libpam(pam_acct_mgmt);
+
+	return pwrap.libpam.symbols._libpam_pam_acct_mgmt.f(pamh, flags);
 }
 
 /*********************************************************
@@ -639,6 +649,17 @@ static int pwrap_pam_authenticate(pam_handle_t *pamh, int flags)
 int pam_authenticate(pam_handle_t *pamh, int flags)
 {
 	return pwrap_pam_authenticate(pamh, flags);
+}
+
+static int pwrap_pam_acct_mgmt(pam_handle_t *pamh, int flags)
+{
+	PWRAP_LOG(PWRAP_LOG_TRACE, "pwrap_pam_acct_mgmt flags=%d", flags);
+	return libpam_pam_acct_mgmt(pamh, flags);
+}
+
+int pam_acct_mgmt(pam_handle_t *pamh, int flags)
+{
+	return pwrap_pam_acct_mgmt(pamh, flags);
 }
 
 /****************************

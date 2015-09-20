@@ -6,6 +6,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <errno.h>
 
 #include <security/pam_modules.h>
 #include <security/pam_appl.h>
@@ -26,29 +27,43 @@
 	}							\
 } while(0);
 
-struct pam_items {
+struct pam_lib_items {
 	const char *username;
-	char *pam_password;
-
+	const char *service;
 	char *password;
 };
 
-static char *find_password(const char *username)
+struct pam_example_mod_items {
+	char *password;
+	char *service;
+};
+
+struct pam_example_ctx {
+	struct pam_lib_items pli;
+	struct pam_example_mod_items pmi;
+};
+
+
+static int pam_example_mod_items_get(const char *username,
+				     struct pam_example_mod_items *pmi)
 {
+	int rv;
 	const char *db;
-	char *passwd = NULL;
 	FILE *fp = NULL;
 	char buf[BUFSIZ];
 	char *file_user = NULL;
 	char *file_password = NULL;
+	char *file_svc = NULL;
 
 	db = getenv("PWRAP_PASSDB");
 	if (db == NULL) {
+		rv = EIO;
 		goto fail;
 	}
 
 	fp = fopen(db, "r");
 	if (fp == NULL) {
+		rv = errno;
 		goto fail;
 	}
 
@@ -63,10 +78,11 @@ static char *find_password(const char *username)
 			continue;
 		}
 
-		/* Find the user */
+		/* Find the user, his password and allowed service */
 		NEXT_KEY(file_user, file_password);
+		NEXT_KEY(file_password, file_svc);
 
-		q = file_password;
+		q = file_svc;
 		while(q[0] != '\n' && q[0] != '\0') {
 			q++;
 		}
@@ -77,88 +93,123 @@ static char *find_password(const char *username)
 		}
 
 		if (strcmp(file_user, username) == 0) {
-			passwd = strdup(file_password);
-			if (passwd == NULL) {
+			pmi->password = strdup(file_password);
+			if (pmi->password == NULL) {
+				rv = errno;
 				goto fail;
 			}
+
+			pmi->service = strdup(file_svc);
+			if (pmi->service == NULL) {
+				rv = errno;
+				goto fail;
+			}
+
 			break;
 		}
 	}
 
-	return passwd;
+	return 0;
 
 fail:
-	free(passwd);
-	if (fp) fclose(fp);
-	return NULL;
+	free(pmi->password);
+	free(pmi->service);
+	if (fp) {
+		fclose(fp);
+	}
+	return rv;
 }
 
-static int get_info(pam_handle_t *pamh, struct pam_items *pi)
+static void pam_example_mod_items_free(struct pam_example_mod_items *pmi)
+{
+	if (pmi == NULL) {
+		return;
+	}
+
+	free(pmi->password);
+	free(pmi->service);
+}
+
+static int pam_lib_items_get(pam_handle_t *pamh,
+			     struct pam_lib_items *pli)
 {
 	int rv;
 
-	rv = pam_get_item(pamh, PAM_USER, (const void **) &(pi->username));
+	rv = pam_get_item(pamh, PAM_USER, (const void **) &(pli->username));
 	if (rv != PAM_SUCCESS) {
 		return rv;
 	}
 
-	if (pi->username == NULL) {
+	if (pli->username == NULL) {
 		return PAM_BAD_ITEM;
 	}
 
-	rv = pam_prompt(pamh, PAM_PROMPT_ECHO_OFF,
-			&pi->pam_password, "%s", "Password");
+	rv = pam_get_item(pamh, PAM_SERVICE, (const void **) &(pli->service));
 	if (rv != PAM_SUCCESS) {
 		return rv;
 	}
 
-	if (pi->pam_password == NULL) {
-		return PAM_AUTHINFO_UNAVAIL;
+	rv = pam_prompt(pamh, PAM_PROMPT_ECHO_OFF,
+			&pli->password, "%s", "Password");
+	if (rv != PAM_SUCCESS) {
+		return rv;
 	}
 
-	pi->password = find_password(pi->username);
-	if (pi->password == NULL) {
-		return PAM_USER_UNKNOWN;
+	if (pli->password == NULL) {
+		return PAM_AUTHINFO_UNAVAIL;
 	}
 
 	return PAM_SUCCESS;
 }
 
-static void pam_items_free(struct pam_items *pi)
+static int pam_example_get(pam_handle_t *pamh, struct pam_example_ctx *pe_ctx)
 {
-	if (pi == NULL) {
-		return;
-	}
+    int rv;
 
-	free(pi->password);
+    rv = pam_lib_items_get(pamh, &pe_ctx->pli);
+    if (rv != PAM_SUCCESS) {
+	    return rv;
+    }
+
+    rv = pam_example_mod_items_get(pe_ctx->pli.username, &pe_ctx->pmi);
+    if (rv != PAM_SUCCESS) {
+	    return rv;
+    }
+
+    return PAM_SUCCESS;
+}
+
+static void pam_example_free(struct pam_example_ctx *pe_ctx)
+{
+	pam_example_mod_items_free(&pe_ctx->pmi);
 }
 
 PAM_EXTERN int
 pam_sm_authenticate(pam_handle_t *pamh, int flags,
 		    int argc, const char *argv[])
 {
-	struct pam_items pi;
+	struct pam_example_ctx pctx;
 	int rv;
 
 	(void) flags; /* unused */
 	(void) argc;  /* unused */
 	(void) argv;  /* unused */
 
-	memset(&pi, 0, sizeof(struct pam_items));
+	memset(&pctx, 0, sizeof(struct pam_example_ctx));
 
-	rv = get_info(pamh, &pi);
+	rv = pam_example_get(pamh, &pctx);
 	if (rv != PAM_SUCCESS) {
 		goto done;
 	}
 
-	if (strcmp(pi.pam_password, pi.password) == 0) {
+	if (strcmp(pctx.pli.password, pctx.pmi.password) == 0) {
 		rv = PAM_SUCCESS;
 		goto done;
 	}
 
 	rv = PAM_AUTH_ERR;
 done:
-	pam_items_free(&pi);
+	pam_example_free(&pctx);
 	return rv;
 }
 
@@ -178,12 +229,29 @@ PAM_EXTERN int
 pam_sm_acct_mgmt(pam_handle_t *pamh, int flags,
 		 int argc, const char *argv[])
 {
-	(void) pamh;  /* unused */
+	struct pam_example_ctx pctx;
+	int rv;
+
 	(void) flags; /* unused */
 	(void) argc;  /* unused */
 	(void) argv;  /* unused */
 
-	return PAM_SUCCESS;
+	memset(&pctx, 0, sizeof(struct pam_example_ctx));
+
+	rv = pam_example_get(pamh, &pctx);
+	if (rv != PAM_SUCCESS) {
+		goto done;
+	}
+
+	if (strcmp(pctx.pli.service, pctx.pmi.service) == 0) {
+		rv = PAM_SUCCESS;
+		goto done;
+	}
+
+	rv = PAM_PERM_DENIED;
+done:
+	pam_example_free(&pctx);
+	return rv;
 }
 
 PAM_EXTERN int
