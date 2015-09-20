@@ -181,6 +181,12 @@ typedef int (*__libpam_pam_authenticate)(pam_handle_t *pamh, int flags);
 
 typedef int (*__libpam_pam_acct_mgmt)(pam_handle_t *pamh, int flags);
 
+typedef int (*__libpam_pam_putenv)(pam_handle_t *pamh, const char *name_value);
+
+typedef const char * (*__libpam_pam_getenv)(pam_handle_t *pamh, const char *name);
+
+typedef char ** (*__libpam_pam_getenvlist)(pam_handle_t *pamh);
+
 #define PWRAP_SYMBOL_ENTRY(i) \
 	union { \
 		__libpam_##i f; \
@@ -192,6 +198,9 @@ struct pwrap_libpam_symbols {
 	PWRAP_SYMBOL_ENTRY(pam_end);
 	PWRAP_SYMBOL_ENTRY(pam_authenticate);
 	PWRAP_SYMBOL_ENTRY(pam_acct_mgmt);
+	PWRAP_SYMBOL_ENTRY(pam_putenv);
+	PWRAP_SYMBOL_ENTRY(pam_getenv);
+	PWRAP_SYMBOL_ENTRY(pam_getenvlist);
 };
 
 struct pwrap {
@@ -328,6 +337,27 @@ static int libpam_pam_acct_mgmt(pam_handle_t *pamh, int flags)
 	pwrap_bind_symbol_libpam(pam_acct_mgmt);
 
 	return pwrap.libpam.symbols._libpam_pam_acct_mgmt.f(pamh, flags);
+}
+
+static int libpam_pam_putenv(pam_handle_t *pamh, const char *name_value)
+{
+	pwrap_bind_symbol_libpam(pam_putenv);
+
+	return pwrap.libpam.symbols._libpam_pam_putenv.f(pamh, name_value);
+}
+
+static const char *libpam_pam_getenv(pam_handle_t *pamh, const char *name)
+{
+	pwrap_bind_symbol_libpam(pam_getenv);
+
+	return pwrap.libpam.symbols._libpam_pam_getenv.f(pamh, name);
+}
+
+static char **libpam_pam_getenvlist(pam_handle_t *pamh)
+{
+	pwrap_bind_symbol_libpam(pam_getenvlist);
+
+	return pwrap.libpam.symbols._libpam_pam_getenvlist.f(pamh);
 }
 
 /*********************************************************
@@ -687,6 +717,39 @@ static int pwrap_pam_acct_mgmt(pam_handle_t *pamh, int flags)
 int pam_acct_mgmt(pam_handle_t *pamh, int flags)
 {
 	return pwrap_pam_acct_mgmt(pamh, flags);
+}
+
+static int pwrap_pam_putenv(pam_handle_t *pamh, const char *name_value)
+{
+	PWRAP_LOG(PWRAP_LOG_TRACE, "pwrap_putenv name_value=%s", name_value);
+	return libpam_pam_putenv(pamh, name_value);
+}
+
+int pam_putenv(pam_handle_t *pamh, const char *name_value)
+{
+	return pwrap_pam_putenv(pamh, name_value);
+}
+
+static const char *pwrap_pam_getenv(pam_handle_t *pamh, const char *name)
+{
+	PWRAP_LOG(PWRAP_LOG_TRACE, "pwrap_getenv name=%s", name);
+	return libpam_pam_getenv(pamh, name);
+}
+
+const char *pam_getenv(pam_handle_t *pamh, const char *name)
+{
+	return pwrap_pam_getenv(pamh, name);
+}
+
+static char **pwrap_pam_getenvlist(pam_handle_t *pamh)
+{
+	PWRAP_LOG(PWRAP_LOG_TRACE, "pwrap_getenvlist called");
+	return libpam_pam_getenvlist(pamh);
+}
+
+char **pam_getenvlist(pam_handle_t *pamh)
+{
+	return pwrap_pam_getenvlist(pamh);
 }
 
 /****************************

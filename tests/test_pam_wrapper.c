@@ -175,6 +175,66 @@ static void test_pam_acct_err(void **state)
 	assert_int_equal(rv, PAM_PERM_DENIED);
 }
 
+static inline void free_vlist(char **vlist)
+{
+	free(vlist[0]);
+	free(vlist[1]);
+	free(vlist);
+}
+
+static void test_pam_env_functions(void **state)
+{
+	int rv;
+	const char *v;
+	char **vlist;
+	struct pwrap_test_ctx *test_ctx;
+
+	test_ctx = (struct pwrap_test_ctx *) *state;
+
+	rv = pam_putenv(test_ctx->ph, "KEY=value");
+	assert_int_equal(rv, PAM_SUCCESS);
+	rv = pam_putenv(test_ctx->ph, "KEY2=value2");
+	assert_int_equal(rv, PAM_SUCCESS);
+
+	v = pam_getenv(test_ctx->ph, "KEY");
+	assert_non_null(v);
+	assert_string_equal(v, "value");
+
+	v = pam_getenv(test_ctx->ph, "KEY2");
+	assert_non_null(v);
+	assert_string_equal(v, "value2");
+
+	vlist = pam_getenvlist(test_ctx->ph);
+	assert_non_null(vlist);
+	assert_non_null(vlist[0]);
+	assert_string_equal(vlist[0], "KEY=value");
+	assert_non_null(vlist[1]);
+	assert_string_equal(vlist[1], "KEY2=value2");
+	assert_null(vlist[2]);
+	free_vlist(vlist);
+
+	rv = pam_putenv(test_ctx->ph, "KEY2=");
+	assert_int_equal(rv, PAM_SUCCESS);
+
+	vlist = pam_getenvlist(test_ctx->ph);
+	assert_non_null(vlist);
+	assert_non_null(vlist[0]);
+	assert_string_equal(vlist[0], "KEY=value");
+	assert_non_null(vlist[1]);
+	assert_string_equal(vlist[1], "KEY2=");
+	assert_null(vlist[2]);
+	free_vlist(vlist);
+
+	rv = pam_putenv(test_ctx->ph, "KEY2");
+	assert_int_equal(rv, PAM_SUCCESS);
+
+	vlist = pam_getenvlist(test_ctx->ph);
+	assert_non_null(vlist);
+	assert_non_null(vlist[0]);
+	assert_string_equal(vlist[0], "KEY=value");
+	assert_null(vlist[1]);
+	free_vlist(vlist);
+}
 
 int main(void) {
 	int rc;
@@ -194,6 +254,9 @@ int main(void) {
 						teardown),
 		cmocka_unit_test_setup_teardown(test_pam_acct_err,
 						setup_simple,
+						teardown),
+		cmocka_unit_test_setup_teardown(test_pam_env_functions,
+						setup,
 						teardown),
 	};
 
