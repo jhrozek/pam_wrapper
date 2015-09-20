@@ -236,6 +236,25 @@ static void test_pam_env_functions(void **state)
 	free_vlist(vlist);
 }
 
+static void test_pam_session(void **state)
+{
+	int rv;
+	const char *v;
+	struct pwrap_test_ctx *test_ctx;
+
+	test_ctx = (struct pwrap_test_ctx *) *state;
+
+	v = pam_getenv(test_ctx->ph, "HOMEDIR");
+	assert_null(v);
+
+	rv = pam_open_session(test_ctx->ph, 0);
+	assert_int_equal(rv, PAM_SUCCESS);
+
+	v = pam_getenv(test_ctx->ph, "HOMEDIR");
+	assert_non_null(v);
+	assert_string_equal(v, "/home/testuser");
+}
+
 int main(void) {
 	int rc;
 
@@ -256,6 +275,9 @@ int main(void) {
 						setup_simple,
 						teardown),
 		cmocka_unit_test_setup_teardown(test_pam_env_functions,
+						setup,
+						teardown),
+		cmocka_unit_test_setup_teardown(test_pam_session,
 						setup,
 						teardown),
 	};

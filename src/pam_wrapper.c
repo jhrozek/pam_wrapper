@@ -160,6 +160,10 @@ typedef const char * (*__libpam_pam_getenv)(pam_handle_t *pamh, const char *name
 
 typedef char ** (*__libpam_pam_getenvlist)(pam_handle_t *pamh);
 
+typedef int (*__libpam_pam_open_session)(pam_handle_t *pamh, int flags);
+
+typedef int (*__libpam_pam_close_session)(pam_handle_t *pamh, int flags);
+
 #define PWRAP_SYMBOL_ENTRY(i) \
 	union { \
 		__libpam_##i f; \
@@ -174,6 +178,8 @@ struct pwrap_libpam_symbols {
 	PWRAP_SYMBOL_ENTRY(pam_putenv);
 	PWRAP_SYMBOL_ENTRY(pam_getenv);
 	PWRAP_SYMBOL_ENTRY(pam_getenvlist);
+	PWRAP_SYMBOL_ENTRY(pam_open_session);
+	PWRAP_SYMBOL_ENTRY(pam_close_session);
 };
 
 struct pwrap {
@@ -331,6 +337,20 @@ static char **libpam_pam_getenvlist(pam_handle_t *pamh)
 	pwrap_bind_symbol_libpam(pam_getenvlist);
 
 	return pwrap.libpam.symbols._libpam_pam_getenvlist.f(pamh);
+}
+
+static int libpam_pam_open_session(pam_handle_t *pamh, int flags)
+{
+	pwrap_bind_symbol_libpam(pam_open_session);
+
+	return pwrap.libpam.symbols._libpam_pam_open_session.f(pamh, flags);
+}
+
+static int libpam_pam_close_session(pam_handle_t *pamh, int flags)
+{
+	pwrap_bind_symbol_libpam(pam_close_session);
+
+	return pwrap.libpam.symbols._libpam_pam_close_session.f(pamh, flags);
 }
 
 /*********************************************************
@@ -723,6 +743,28 @@ static char **pwrap_pam_getenvlist(pam_handle_t *pamh)
 char **pam_getenvlist(pam_handle_t *pamh)
 {
 	return pwrap_pam_getenvlist(pamh);
+}
+
+static int pwrap_pam_open_session(pam_handle_t *pamh, int flags)
+{
+	PWRAP_LOG(PWRAP_LOG_TRACE, "pwrap_pam_open_session flags=%d", flags);
+	return libpam_pam_open_session(pamh, flags);
+}
+
+int pam_open_session(pam_handle_t *pamh, int flags)
+{
+	return pwrap_pam_open_session(pamh, flags);
+}
+
+static int pwrap_pam_close_session(pam_handle_t *pamh, int flags)
+{
+	PWRAP_LOG(PWRAP_LOG_TRACE, "pwrap_pam_close_session flags=%d", flags);
+	return libpam_pam_close_session(pamh, flags);
+}
+
+int pam_close_session(pam_handle_t *pamh, int flags)
+{
+	return pwrap_pam_close_session(pamh, flags);
 }
 
 /****************************
