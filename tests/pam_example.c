@@ -12,6 +12,9 @@
 #include <security/pam_appl.h>
 #include <security/pam_ext.h>
 
+#define HOME_VAR	"HOMEDIR"
+#define HOME_VAR_SZ	sizeof(HOME_VAR)-1
+
 /* Skips leading tabs and spaces to find beginning of a key,
  * then walks over the key until a blank is find
  */
@@ -258,24 +261,67 @@ PAM_EXTERN int
 pam_sm_open_session(pam_handle_t *pamh, int flags,
 		    int argc, const char *argv[])
 {
-	(void) pamh;  /* unused */
+	struct pam_example_ctx pctx;
+	int rv;
+	char home[PATH_MAX + HOME_VAR_SZ];
+
 	(void) flags; /* unused */
 	(void) argc;  /* unused */
 	(void) argv;  /* unused */
 
-	return PAM_SUCCESS;
+	memset(&pctx, 0, sizeof(struct pam_example_ctx));
+
+	rv = pam_example_get(pamh, &pctx);
+	if (rv != PAM_SUCCESS) {
+		goto done;
+	}
+
+	rv = snprintf(home, sizeof(home),
+		      "%s=/home/%s",
+		      HOME_VAR, pctx.pli.username);
+	if (rv <= 0) {
+		rv = PAM_BUF_ERR;
+		goto done;
+	}
+
+	rv = pam_putenv(pamh, home);
+	if (rv != PAM_SUCCESS) {
+		goto done;
+	}
+
+	rv = PAM_SUCCESS;
+done:
+	pam_example_free(&pctx);
+	return rv;
 }
 
 PAM_EXTERN int
 pam_sm_close_session(pam_handle_t *pamh, int flags,
 		     int argc, const char *argv[])
 {
-	(void) pamh;  /* unused */
+	struct pam_example_ctx pctx;
+	int rv;
+
 	(void) flags; /* unused */
 	(void) argc;  /* unused */
 	(void) argv;  /* unused */
 
-	return PAM_SUCCESS;
+	memset(&pctx, 0, sizeof(struct pam_example_ctx));
+
+	rv = pam_example_get(pamh, &pctx);
+	if (rv != PAM_SUCCESS) {
+		goto done;
+	}
+
+	rv = pam_putenv(pamh, HOME_VAR);
+	if (rv != PAM_SUCCESS) {
+		goto done;
+	}
+
+	rv = PAM_SUCCESS;
+done:
+	pam_example_free(&pctx);
+	return rv;
 }
 
 PAM_EXTERN int
