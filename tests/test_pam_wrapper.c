@@ -99,12 +99,25 @@ static int setup(void **state)
 		return rv;
 	}
 
+	test_ctx->conv.appdata_ptr = (void *) "secret";
+	rv = pam_start("pwrap_pam", "testuser",
+		       &test_ctx->conv, &test_ctx->ph);
+	assert_int_equal(rv, PAM_SUCCESS);
+
 	*state = test_ctx;
 	return 0;
 }
 
 static int teardown(void **state)
 {
+	struct pwrap_test_ctx *test_ctx;
+	int rv;
+
+	test_ctx = (struct pwrap_test_ctx *) *state;
+
+	rv = pam_end(test_ctx->ph, PAM_SUCCESS);
+	assert_int_equal(rv, PAM_SUCCESS);
+
 	return teardown_simple(state);
 }
 
@@ -114,11 +127,6 @@ static void test_pam_authenticate(void **state)
 	struct pwrap_test_ctx *test_ctx;
 
 	test_ctx = (struct pwrap_test_ctx *) *state;
-
-	test_ctx->conv.appdata_ptr = (void *) "secret";
-	rv = pam_start("pwrap_pam", "testuser",
-			&test_ctx->conv, &test_ctx->ph);
-	assert_int_equal(rv, PAM_SUCCESS);
 
 	rv = pam_authenticate(test_ctx->ph, 0);
 	assert_int_equal(rv, PAM_SUCCESS);
@@ -140,6 +148,33 @@ static void test_pam_authenticate_err(void **state)
 	assert_int_equal(rv, PAM_AUTH_ERR);
 }
 
+static void test_pam_acct(void **state)
+{
+	int rv;
+	struct pwrap_test_ctx *test_ctx;
+
+	test_ctx = (struct pwrap_test_ctx *) *state;
+
+	rv = pam_acct_mgmt(test_ctx->ph, 0);
+	assert_int_equal(rv, PAM_SUCCESS);
+}
+
+static void test_pam_acct_err(void **state)
+{
+	int rv;
+	struct pwrap_test_ctx *test_ctx;
+
+	test_ctx = (struct pwrap_test_ctx *) *state;
+
+	test_ctx->conv.appdata_ptr = (void *) "secret";
+	rv = pam_start("pwrap_pam", "testuser2",
+			&test_ctx->conv, &test_ctx->ph);
+	assert_int_equal(rv, PAM_SUCCESS);
+
+	rv = pam_acct_mgmt(test_ctx->ph, 0);
+	assert_int_equal(rv, PAM_PERM_DENIED);
+}
+
 
 int main(void) {
 	int rc;
@@ -152,7 +187,13 @@ int main(void) {
 						setup,
 						teardown),
 		cmocka_unit_test_setup_teardown(test_pam_authenticate_err,
+						setup_simple,
+						teardown),
+		cmocka_unit_test_setup_teardown(test_pam_acct,
 						setup,
+						teardown),
+		cmocka_unit_test_setup_teardown(test_pam_acct_err,
+						setup_simple,
 						teardown),
 	};
 
