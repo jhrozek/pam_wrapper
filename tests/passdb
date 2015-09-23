@@ -1,3 +1,0 @@
-# The format is username password
-testuser	secret	    pwrap_pam
-testuser2	secret	    pwrap_wrong_svc
