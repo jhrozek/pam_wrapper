@@ -413,6 +413,33 @@ static void test_pam_setcred(void **state)
 	assert_string_equal(v, "/tmp/testuser");
 }
 
+static void test_pam_item_functions(void **state)
+{
+	struct pwrap_test_ctx *test_ctx;
+	const char *item;
+	int rv;
+
+	test_ctx = (struct pwrap_test_ctx *) *state;
+
+	rv = pam_get_item(test_ctx->ph, PAM_USER, (const void **) &item);
+	assert_int_equal(rv, PAM_SUCCESS);
+	assert_string_equal(item, "testuser");
+
+	rv = pam_set_item(test_ctx->ph, PAM_USER_PROMPT, "test_login");
+	assert_int_equal(rv, PAM_SUCCESS);
+	assert_string_equal(item, "testuser");
+
+	rv = pam_get_item(test_ctx->ph, PAM_USER_PROMPT, (const void **) &item);
+	assert_int_equal(rv, PAM_SUCCESS);
+	assert_string_equal(item, "test_login");
+
+	rv = pam_get_item(test_ctx->ph, PAM_AUTHTOK, (const void **) &item);
+	assert_int_equal(rv, PAM_BAD_ITEM);
+
+	rv = pam_set_item(test_ctx->ph, PAM_AUTHTOK, "mysecret");
+	assert_int_equal(rv, PAM_BAD_ITEM);
+}
+
 int main(void) {
 	int rc;
 
@@ -445,6 +472,9 @@ int main(void) {
 						setup_ctx_only,
 						teardown),
 		cmocka_unit_test_setup_teardown(test_pam_setcred,
+						setup_noconv,
+						teardown),
+		cmocka_unit_test_setup_teardown(test_pam_item_functions,
 						setup_noconv,
 						teardown),
 	};

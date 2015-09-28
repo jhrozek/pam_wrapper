@@ -168,6 +168,14 @@ typedef int (*__libpam_pam_close_session)(pam_handle_t *pamh, int flags);
 
 typedef int (*__libpam_pam_setcred)(pam_handle_t *pamh, int flags);
 
+typedef int (*__libpam_pam_get_item)(const pam_handle_t *pamh,
+				     int item_type,
+				     const void **item);
+
+typedef int (*__libpam_pam_set_item)(pam_handle_t *pamh,
+				     int item_type,
+				     const void *item);
+
 #define PWRAP_SYMBOL_ENTRY(i) \
 	union { \
 		__libpam_##i f; \
@@ -186,6 +194,8 @@ struct pwrap_libpam_symbols {
 	PWRAP_SYMBOL_ENTRY(pam_open_session);
 	PWRAP_SYMBOL_ENTRY(pam_close_session);
 	PWRAP_SYMBOL_ENTRY(pam_setcred);
+	PWRAP_SYMBOL_ENTRY(pam_get_item);
+	PWRAP_SYMBOL_ENTRY(pam_set_item);
 };
 
 struct pwrap {
@@ -371,6 +381,20 @@ static int libpam_pam_setcred(pam_handle_t *pamh, int flags)
 	pwrap_bind_symbol_libpam(pam_setcred);
 
 	return pwrap.libpam.symbols._libpam_pam_setcred.f(pamh, flags);
+}
+
+static int libpam_pam_get_item(const pam_handle_t *pamh, int item_type, const void **item)
+{
+	pwrap_bind_symbol_libpam(pam_get_item);
+
+	return pwrap.libpam.symbols._libpam_pam_get_item.f(pamh, item_type, item);
+}
+
+static int libpam_pam_set_item(pam_handle_t *pamh, int item_type, const void *item)
+{
+	pwrap_bind_symbol_libpam(pam_set_item);
+
+	return pwrap.libpam.symbols._libpam_pam_set_item.f(pamh, item_type, item);
 }
 
 /*********************************************************
@@ -807,6 +831,34 @@ static int pwrap_pam_setcred(pam_handle_t *pamh, int flags)
 int pam_setcred(pam_handle_t *pamh, int flags)
 {
 	return pwrap_pam_setcred(pamh, flags);
+}
+
+static int pwrap_pam_get_item(const pam_handle_t *pamh,
+			      int item_type,
+			      const void **item)
+{
+	PWRAP_LOG(PWRAP_LOG_TRACE,
+		  "pwrap_get_item item_type=%d", item_type);
+	return libpam_pam_get_item(pamh, item_type, item);
+}
+
+int pam_get_item(const pam_handle_t *pamh, int item_type, const void **item)
+{
+	return pwrap_pam_get_item(pamh, item_type, item);
+}
+
+static int pwrap_pam_set_item(pam_handle_t *pamh,
+			      int item_type,
+			      const void *item)
+{
+	PWRAP_LOG(PWRAP_LOG_TRACE,
+		  "pwrap_set_item item_type=%d item=%p", item_type, item);
+	return libpam_pam_set_item(pamh, item_type, item);
+}
+
+int pam_set_item(pam_handle_t *pamh, int item_type, const void *item)
+{
+	return pwrap_pam_set_item(pamh, item_type, item);
 }
 
 /****************************
