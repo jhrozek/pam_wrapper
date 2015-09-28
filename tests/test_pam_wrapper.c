@@ -394,6 +394,25 @@ static void test_pam_chauthtok_prelim_failed(void **state)
 	assert_int_equal(rv, PAM_AUTH_ERR);
 }
 
+static void test_pam_setcred(void **state)
+{
+	int rv;
+	const char *v;
+	struct pwrap_test_ctx *test_ctx;
+
+	test_ctx = (struct pwrap_test_ctx *) *state;
+
+	v = pam_getenv(test_ctx->ph, "CRED");
+	assert_null(v);
+
+	rv = pam_setcred(test_ctx->ph, 0);
+	assert_int_equal(rv, PAM_SUCCESS);
+
+	v = pam_getenv(test_ctx->ph, "CRED");
+	assert_non_null(v);
+	assert_string_equal(v, "/tmp/testuser");
+}
+
 int main(void) {
 	int rc;
 
@@ -424,6 +443,9 @@ int main(void) {
 						teardown),
 		cmocka_unit_test_setup_teardown(test_pam_chauthtok_prelim_failed,
 						setup_ctx_only,
+						teardown),
+		cmocka_unit_test_setup_teardown(test_pam_setcred,
+						setup_noconv,
 						teardown),
 	};
 
