@@ -193,6 +193,8 @@ typedef int (*__libpam_pam_open_session)(pam_handle_t *pamh, int flags);
 
 typedef int (*__libpam_pam_close_session)(pam_handle_t *pamh, int flags);
 
+typedef int (*__libpam_pam_setcred)(pam_handle_t *pamh, int flags);
+
 #define PWRAP_SYMBOL_ENTRY(i) \
 	union { \
 		__libpam_##i f; \
@@ -210,6 +212,7 @@ struct pwrap_libpam_symbols {
 	PWRAP_SYMBOL_ENTRY(pam_getenvlist);
 	PWRAP_SYMBOL_ENTRY(pam_open_session);
 	PWRAP_SYMBOL_ENTRY(pam_close_session);
+	PWRAP_SYMBOL_ENTRY(pam_setcred);
 };
 
 struct pwrap {
@@ -388,6 +391,13 @@ static int libpam_pam_close_session(pam_handle_t *pamh, int flags)
 	pwrap_bind_symbol_libpam(pam_close_session);
 
 	return pwrap.libpam.symbols._libpam_pam_close_session.f(pamh, flags);
+}
+
+static int libpam_pam_setcred(pam_handle_t *pamh, int flags)
+{
+	pwrap_bind_symbol_libpam(pam_setcred);
+
+	return pwrap.libpam.symbols._libpam_pam_setcred.f(pamh, flags);
 }
 
 /*********************************************************
@@ -813,6 +823,17 @@ static int pwrap_pam_close_session(pam_handle_t *pamh, int flags)
 int pam_close_session(pam_handle_t *pamh, int flags)
 {
 	return pwrap_pam_close_session(pamh, flags);
+}
+
+static int pwrap_pam_setcred(pam_handle_t *pamh, int flags)
+{
+	PWRAP_LOG(PWRAP_LOG_TRACE, "pwrap_pam_setcred flags=%d", flags);
+	return libpam_pam_setcred(pamh, flags);
+}
+
+int pam_setcred(pam_handle_t *pamh, int flags)
+{
+	return pwrap_pam_setcred(pamh, flags);
 }
 
 /****************************
