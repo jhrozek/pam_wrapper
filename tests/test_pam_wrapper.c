@@ -537,6 +537,17 @@ static void test_pam_prompt(void **state)
 	assert_int_equal(resp_array[1], 1);
 }
 
+static void test_pam_strerror(void **state)
+{
+	struct pwrap_test_ctx *test_ctx;
+	const char *s = NULL;
+
+	test_ctx = (struct pwrap_test_ctx *) *state;
+
+	s = pam_strerror(test_ctx->ph, PAM_AUTH_ERR);
+	assert_non_null(s);
+}
+
 int main(void) {
 	int rc;
 
@@ -576,6 +587,9 @@ int main(void) {
 						teardown),
 		cmocka_unit_test_setup_teardown(test_pam_prompt,
 						setup_ctx_only,
+						teardown),
+		cmocka_unit_test_setup_teardown(test_pam_strerror,
+						setup_noconv,
 						teardown),
 	};
 

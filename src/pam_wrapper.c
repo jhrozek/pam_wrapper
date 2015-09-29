@@ -222,6 +222,8 @@ typedef int (*__libpam_pam_vprompt)(pam_handle_t *pamh,
 				    const char *fmt,
 				    va_list args);
 
+typedef const char * (*__libpam_pam_strerror)(pam_handle_t *pamh, int errnum);
+
 #define PWRAP_SYMBOL_ENTRY(i) \
 	union { \
 		__libpam_##i f; \
@@ -245,6 +247,7 @@ struct pwrap_libpam_symbols {
 	PWRAP_SYMBOL_ENTRY(pam_get_data);
 	PWRAP_SYMBOL_ENTRY(pam_set_data);
 	PWRAP_SYMBOL_ENTRY(pam_vprompt);
+	PWRAP_SYMBOL_ENTRY(pam_strerror);
 };
 
 struct pwrap {
@@ -485,6 +488,13 @@ static int libpam_pam_vprompt(pam_handle_t *pamh,
 							  response,
 							  fmt,
 							  args);
+}
+
+static const char *libpam_pam_strerror(pam_handle_t *pamh, int errnum)
+{
+	pwrap_bind_symbol_libpam(pam_strerror);
+
+	return pwrap.libpam.symbols._libpam_pam_strerror.f(pamh, errnum);
 }
 
 /*********************************************************
@@ -1022,6 +1032,17 @@ int pam_prompt(pam_handle_t *pamh,
 	va_end(args);
 
 	return rv;  
+}
+
+static const char *pwrap_pam_strerror(pam_handle_t *pamh, int errnum)
+{
+	PWRAP_LOG(PWRAP_LOG_TRACE, "pam_strerror errnum=%d", errnum);
+	return libpam_pam_strerror(pamh, errnum);
+}
+
+const char *pam_strerror(pam_handle_t *pamh, int errnum)
+{
+	return pwrap_pam_strerror(pamh, errnum);
 }
 
 /****************************
