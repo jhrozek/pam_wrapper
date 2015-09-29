@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <limits.h>
 #include <security/pam_appl.h>
+#include <security/pam_ext.h>
 
 struct pwrap_test_ctx {
 	struct pam_conv conv;
@@ -440,6 +441,102 @@ static void test_pam_item_functions(void **state)
 	assert_int_equal(rv, PAM_BAD_ITEM);
 }
 
+static int add_to_reply(struct pam_response *res,
+			const char *s1,
+			const char *s2)
+{
+	size_t res_len;
+	int rv;
+
+	res_len = strlen(s1) + strlen(s2) + 1;
+
+	res->resp = calloc(res_len, sizeof(char));
+	if (res->resp == NULL) {
+		return ENOMEM;
+	}
+
+	rv = snprintf(res->resp, res_len, "%s%s", s1, s2);
+	if (rv < 0) {
+		return EIO;
+	}
+
+	return 0;
+}
+
+static int pwrap_echo_conv(int num_msg,
+			   const struct pam_message **msgm,
+			   struct pam_response **response,
+			   void *appdata_ptr)
+{
+	int i;
+	struct pam_response *reply;
+	int *resp_array = appdata_ptr;
+
+	reply = (struct pam_response *) calloc(num_msg, sizeof(struct pam_response));
+	if (reply == NULL) {
+		return PAM_CONV_ERR;
+	}
+
+	for (i=0; i < num_msg; i++) {
+		switch (msgm[i]->msg_style) {
+		case PAM_PROMPT_ECHO_OFF:
+			add_to_reply(&reply[i], "echo off: ", msgm[i]->msg);
+			break;
+		case PAM_PROMPT_ECHO_ON:
+			add_to_reply(&reply[i], "echo on: ", msgm[i]->msg);
+			break;
+		case PAM_TEXT_INFO:
+			resp_array[0] = 1;
+			break;
+		case PAM_ERROR_MSG:
+			resp_array[1] = 1;
+			break;
+		default:
+			break;
+		}
+	}
+
+	*response = reply;
+	return PAM_SUCCESS;
+}
+
+static void test_pam_prompt(void **state)
+{
+	struct pwrap_test_ctx *test_ctx;
+	int rv;
+	char *response;
+	int resp_array[2];
+
+	test_ctx = (struct pwrap_test_ctx *) *state;
+
+	memset(resp_array, 0, sizeof(resp_array));
+
+	test_ctx->conv.conv = pwrap_echo_conv;
+	test_ctx->conv.appdata_ptr = resp_array;
+
+	rv = pam_start("pwrap_pam", "testuser",
+		       &test_ctx->conv, &test_ctx->ph);
+	assert_int_equal(rv, PAM_SUCCESS);
+
+	rv = pam_prompt(test_ctx->ph, PAM_PROMPT_ECHO_OFF, &response, "no echo");
+	assert_int_equal(rv, PAM_SUCCESS);
+	assert_string_equal(response, "echo off: no echo");
+	free(response);
+
+	rv = pam_prompt(test_ctx->ph, PAM_PROMPT_ECHO_ON, &response, "echo");
+	assert_int_equal(rv, PAM_SUCCESS);
+	assert_string_equal(response, "echo on: echo");
+	free(response);
+
+	assert_int_equal(resp_array[0], 0);
+	pam_info(test_ctx->ph, "info");
+	assert_int_equal(resp_array[0], 1);
+
+	assert_int_equal(resp_array[1], 0);
+	pam_error(test_ctx->ph, "error");
+	assert_int_equal(resp_array[1], 1);
+}
+
 int main(void) {
 	int rc;
 
@@ -476,6 +573,9 @@ int main(void) {
 						teardown),
 		cmocka_unit_test_setup_teardown(test_pam_item_functions,
 						setup_noconv,
+						teardown),
+		cmocka_unit_test_setup_teardown(test_pam_prompt,
+						setup_ctx_only,
 						teardown),
 	};
 

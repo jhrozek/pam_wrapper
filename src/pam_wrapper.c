@@ -38,6 +38,7 @@
 #include <security/pam_appl.h>
 #endif
 #include <security/pam_modules.h>
+#include <security/pam_ext.h>
 
 #ifdef HAVE_GCC_THREAD_LOCAL_STORAGE
 # define PWRAP_THREAD __thread
@@ -188,6 +189,12 @@ typedef int (*__libpam_pam_set_data)(pam_handle_t *pamh,
 						     void *data,
 						     int error_status));
 
+typedef int (*__libpam_pam_vprompt)(pam_handle_t *pamh,
+				    int style,
+				    char **response,
+				    const char *fmt,
+				    va_list args);
+
 #define PWRAP_SYMBOL_ENTRY(i) \
 	union { \
 		__libpam_##i f; \
@@ -210,6 +217,7 @@ struct pwrap_libpam_symbols {
 	PWRAP_SYMBOL_ENTRY(pam_set_item);
 	PWRAP_SYMBOL_ENTRY(pam_get_data);
 	PWRAP_SYMBOL_ENTRY(pam_set_data);
+	PWRAP_SYMBOL_ENTRY(pam_vprompt);
 };
 
 struct pwrap {
@@ -435,6 +443,21 @@ static int libpam_pam_set_data(pam_handle_t *pamh,
 							   module_data_name,
 							   data,
 							   cleanup);
+}
+
+static int libpam_pam_vprompt(pam_handle_t *pamh,
+			      int style,
+			      char **response,
+			      const char *fmt,
+			      va_list args)
+{
+	pwrap_bind_symbol_libpam(pam_vprompt);
+
+	return pwrap.libpam.symbols._libpam_pam_vprompt.f(pamh,
+							  style,
+							  response,
+							  fmt,
+							  args);
 }
 
 /*********************************************************
@@ -938,6 +961,40 @@ int pam_set_data(pam_handle_t *pamh,
 				 int error_status))
 {
 	return pwrap_pam_set_data(pamh, module_data_name, data, cleanup);
+}
+
+static int pwrap_pam_vprompt(pam_handle_t *pamh,
+			     int style,
+			     char **response,
+			     const char *fmt,
+			     va_list args)
+{
+	PWRAP_LOG(PWRAP_LOG_TRACE, "pwrap_pam_vprompt style=%d", style);
+	return libpam_pam_vprompt(pamh, style, response, fmt, args);
+}
+
+int pam_vprompt(pam_handle_t *pamh,
+		int style,
+		char **response,
+		const char *fmt,
+		va_list args)
+{
+	return pwrap_pam_vprompt(pamh, style, response, fmt, args);
+}
+
+int pam_prompt(pam_handle_t *pamh,
+	       int style,
+	       char **response,
+	       const char *fmt, ...)
+{
+	va_list args;
+	int rv;
+
+	va_start(args, fmt);
+	rv = pwrap_pam_vprompt(pamh, style, response, fmt, args);
+	va_end(args);
+
+	return rv;  
 }
 
 /****************************
