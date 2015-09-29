@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
+#include <time.h>
 
 #include <security/pam_modules.h>
 #include <security/pam_appl.h>
@@ -17,6 +18,8 @@
 
 #define CRED_VAR	"CRED"
 #define CRED_VAR_SZ	sizeof(CRED_VAR)-1
+
+#define PAM_EXAMPLE_AUTH_DATA	    "pam_example:auth_data"
 
 /* Skips leading tabs and spaces to find beginning of a key,
  * then walks over the key until a blank is find
@@ -547,6 +550,16 @@ done:
 	return rv;
 }
 
+static void pam_example_stamp_destructor(pam_handle_t *pamh,
+					 void *data,
+					 int error_status)
+{
+	(void) pamh;		/* unused */
+	(void) error_status;	/* unused */
+
+	free(data);
+}
+
 PAM_EXTERN int
 pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 		 int argc, const char *argv[])
@@ -554,6 +567,8 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 	struct pam_example_ctx pctx;
 	const char *old_pass;
 	int rv;
+	time_t *auth_stamp = NULL;
+	const time_t *auth_stamp_out = NULL;
 
 	(void) flags; /* unused */
 	(void) argc;  /* unused */
@@ -576,6 +591,19 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 			goto done;
 		}
 
+		auth_stamp = malloc(sizeof(time_t));
+		if (auth_stamp == NULL) {
+			rv = PAM_BUF_ERR;
+			goto done;
+		}
+		*auth_stamp = time(NULL);
+
+		rv = pam_set_data(pamh, PAM_EXAMPLE_AUTH_DATA,
+				auth_stamp, pam_example_stamp_destructor);
+		if (rv != PAM_SUCCESS) {
+			goto done;
+		}
+
 		rv = pam_example_auth(&pctx);
 	} else if (flags & PAM_UPDATE_AUTHTOK) {
 		rv = pam_get_item(pamh,
@@ -583,6 +611,13 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 				  (const void **) &old_pass);
 		if (rv != PAM_SUCCESS || old_pass == NULL) {
 			rv = PAM_AUTHINFO_UNAVAIL;
+			goto done;
+		}
+
+
+		rv = pam_get_data(pamh, PAM_EXAMPLE_AUTH_DATA,
+				  (const void **) &auth_stamp_out);
+		if (rv != PAM_SUCCESS) {
 			goto done;
 		}
 

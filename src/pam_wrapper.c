@@ -37,6 +37,7 @@
 #ifdef HAVE_SECURITY_PAM_APPL_H
 #include <security/pam_appl.h>
 #endif
+#include <security/pam_modules.h>
 
 #ifdef HAVE_GCC_THREAD_LOCAL_STORAGE
 # define PWRAP_THREAD __thread
@@ -203,6 +204,17 @@ typedef int (*__libpam_pam_set_item)(pam_handle_t *pamh,
 				     int item_type,
 				     const void *item);
 
+typedef int (*__libpam_pam_get_data)(const pam_handle_t *pamh,
+				     const char *module_data_name,
+				     const void **data);
+
+typedef int (*__libpam_pam_set_data)(pam_handle_t *pamh,
+				     const char *module_data_name,
+				     void *data,
+				     void (*cleanup)(pam_handle_t *pamh,
+						     void *data,
+						     int error_status));
+
 #define PWRAP_SYMBOL_ENTRY(i) \
 	union { \
 		__libpam_##i f; \
@@ -223,6 +235,8 @@ struct pwrap_libpam_symbols {
 	PWRAP_SYMBOL_ENTRY(pam_setcred);
 	PWRAP_SYMBOL_ENTRY(pam_get_item);
 	PWRAP_SYMBOL_ENTRY(pam_set_item);
+	PWRAP_SYMBOL_ENTRY(pam_get_data);
+	PWRAP_SYMBOL_ENTRY(pam_set_data);
 };
 
 struct pwrap {
@@ -422,6 +436,32 @@ static int libpam_pam_set_item(pam_handle_t *pamh, int item_type, const void *it
 	pwrap_bind_symbol_libpam(pam_set_item);
 
 	return pwrap.libpam.symbols._libpam_pam_set_item.f(pamh, item_type, item);
+}
+
+static int libpam_pam_get_data(const pam_handle_t *pamh,
+			       const char *module_data_name,
+			       const void **data)
+{
+	pwrap_bind_symbol_libpam(pam_get_data);
+
+	return pwrap.libpam.symbols._libpam_pam_get_data.f(pamh,
+							   module_data_name,
+							   data);
+}
+
+static int libpam_pam_set_data(pam_handle_t *pamh,
+			       const char *module_data_name,
+			       void *data,
+			       void (*cleanup)(pam_handle_t *pamh,
+					       void *data,
+					       int error_status))
+{
+	pwrap_bind_symbol_libpam(pam_set_data);
+
+	return pwrap.libpam.symbols._libpam_pam_set_data.f(pamh,
+							   module_data_name,
+							   data,
+							   cleanup);
 }
 
 /*********************************************************
@@ -886,6 +926,45 @@ static int pwrap_pam_set_item(pam_handle_t *pamh,
 int pam_set_item(pam_handle_t *pamh, int item_type, const void *item)
 {
 	return pwrap_pam_set_item(pamh, item_type, item);
+}
+
+static int pwrap_pam_get_data(const pam_handle_t *pamh,
+			      const char *module_data_name,
+			      const void **data)
+{
+	PWRAP_LOG(PWRAP_LOG_TRACE,
+		  "pwrap_get_data module_data_name=%s", module_data_name);
+	return libpam_pam_get_data(pamh, module_data_name, data);
+}
+
+int pam_get_data(const pam_handle_t *pamh,
+		 const char *module_data_name,
+		 const void **data)
+{
+	return pwrap_pam_get_data(pamh, module_data_name, data);
+}
+
+static int pwrap_pam_set_data(pam_handle_t *pamh,
+			      const char *module_data_name,
+			      void *data,
+			      void (*cleanup)(pam_handle_t *pamh,
+					      void *data,
+					      int error_status))
+{
+	PWRAP_LOG(PWRAP_LOG_TRACE,
+		  "pwrap_set_data module_data_name=%s data=%p",
+		  module_data_name, data);
+	return libpam_pam_set_data(pamh, module_data_name, data, cleanup);
+}
+
+int pam_set_data(pam_handle_t *pamh,
+		 const char *module_data_name,
+		 void *data,
+		 void (*cleanup)(pam_handle_t *pamh,
+				 void *data,
+				 int error_status))
+{
+	return pwrap_pam_set_data(pamh, module_data_name, data, cleanup);
 }
 
 /****************************
