@@ -734,7 +734,10 @@ static void pwrap_init(void)
 	PWRAP_LOG(PWRAP_LOG_DEBUG, "Copy %s to %s", pam_path, pwrap.pam_library);
 	rc = p_copy(pam_path, pwrap.pam_library, pwrap.config_dir, 0644);
 	if (rc != 0) {
-		PWRAP_LOG(PWRAP_LOG_ERROR, "Failed to copy %s", LIBPAM_NAME);
+		PWRAP_LOG(PWRAP_LOG_ERROR,
+			  "Failed to copy %s - error: %s",
+			  LIBPAM_NAME,
+			  strerror(errno));
 		exit(1);
 	}
 
