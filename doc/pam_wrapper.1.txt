@@ -4,12 +4,12 @@ pam_wrapper(1)
 NAME
 ----
 
-pam_wrapper - A wrapper to fake privilege separation
+pam_wrapper - A wrapper test PAM and PAM Modules
 
 SYNOPSIS
 --------
 
-LD_PRELOAD=libpam_wrapper.so PAM_WRAPPER=1 PAM_WRAPPER_CONFIG_PATH=/path_to_config *./myapplication*
+LD_PRELOAD=libpam_wrapper.so PAM_WRAPPER=1 PAM_WRAPPER_CONFIGDIR=/path_to_config *./myapplication*
 
 DESCRIPTION
 -----------
@@ -21,8 +21,8 @@ ENVIRONMENT VARIABLES
 
 *PAM_WRAPPER*::
 
-If you load the pam_wrapper and enable it with setting PAM_WRAPPER=1 all setpam
-and setgid will work, even as a normal user.
+If you load the pam_wrapper and enable it with setting PAM_WRAPPER=1 all libpam
+calls will be directed through a wrapper copy of libpam.
 
 *PAM_WRAPPER_DEBUGLEVEL*::
 
@@ -37,3 +37,5 @@ debug symbols.
 
 EXAMPLE
 -------
+
+An example ...
