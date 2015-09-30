@@ -816,7 +816,11 @@ static int pwrap_pam_start(const char *service_name,
 			   const struct pam_conv *pam_conversation,
 			   pam_handle_t **pamh)
 {
-	PWRAP_LOG(PWRAP_LOG_TRACE, "pam_start called");
+	PWRAP_LOG(PWRAP_LOG_TRACE,
+		  "pam_start service=%s, user=%s",
+		  service_name,
+		  user);
+
 	return libpam_pam_start(service_name,
 				user,
 				pam_conversation,
@@ -947,9 +951,70 @@ static int pwrap_pam_get_item(const pam_handle_t *pamh,
 			      int item_type,
 			      const void **item)
 {
-	PWRAP_LOG(PWRAP_LOG_TRACE,
-		  "pwrap_get_item item_type=%d", item_type);
-	return libpam_pam_get_item(pamh, item_type, item);
+	int rc;
+
+	PWRAP_LOG(PWRAP_LOG_TRACE, "pwrap_get_item called");
+
+	rc = libpam_pam_get_item(pamh, item_type, item);
+
+	if (rc == PAM_SUCCESS) {
+		switch(item_type) {
+		case PAM_USER:
+			PWRAP_LOG(PWRAP_LOG_TRACE,
+				  "pwrap_set_item PAM_USER=%s",
+				  (char *)item);
+			break;
+		case PAM_SERVICE:
+			PWRAP_LOG(PWRAP_LOG_TRACE,
+				  "pwrap_set_item PAM_SERVICE=%s",
+				  (char *)item);
+			break;
+		case PAM_USER_PROMPT:
+			PWRAP_LOG(PWRAP_LOG_TRACE,
+				  "pwrap_set_item PAM_USER_PROMPT=%s",
+				  (char *)item);
+			break;
+		case PAM_TTY:
+			PWRAP_LOG(PWRAP_LOG_TRACE,
+				  "pwrap_set_item PAM_TTY=%s",
+				  (char *)item);
+			break;
+		case PAM_RUSER:
+			PWRAP_LOG(PWRAP_LOG_TRACE,
+				  "pwrap_set_item PAM_RUSER=%s",
+				  (char *)item);
+			break;
+		case PAM_RHOST:
+			PWRAP_LOG(PWRAP_LOG_TRACE,
+				  "pwrap_set_item PAM_RHOST=%s",
+				  (char *)item);
+			break;
+		case PAM_AUTHTOK:
+			PWRAP_LOG(PWRAP_LOG_TRACE,
+				  "pwrap_set_item PAM_AUTHTOK=%s",
+				  (char *)item);
+			break;
+		case PAM_OLDAUTHTOK:
+			PWRAP_LOG(PWRAP_LOG_TRACE,
+				  "pwrap_set_item PAM_OLDAUTHTOK=%s",
+				  (char *)item);
+			break;
+		case PAM_CONV:
+			PWRAP_LOG(PWRAP_LOG_TRACE,
+				  "pwrap_set_item PAM_CONV=%p",
+				  (void *) item);
+			break;
+		default:
+			PWRAP_LOG(PWRAP_LOG_TRACE,
+				  "pwrap_set_item item_type=%d item=%p",
+				  item_type, (void *) item);
+			break;
+		}
+	} else {
+		PWRAP_LOG(PWRAP_LOG_TRACE, "pwrap_get_item failed rc=%d", rc);
+	}
+
+	return rc;
 }
 
 int pam_get_item(const pam_handle_t *pamh, int item_type, const void **item)
@@ -961,9 +1026,69 @@ static int pwrap_pam_set_item(pam_handle_t *pamh,
 			      int item_type,
 			      const void *item)
 {
-	PWRAP_LOG(PWRAP_LOG_TRACE,
-		  "pwrap_set_item item_type=%d item=%p", item_type, item);
-	return libpam_pam_set_item(pamh, item_type, item);
+	int rc;
+
+	PWRAP_LOG(PWRAP_LOG_TRACE, "pwrap_set_item called");
+
+	rc = libpam_pam_set_item(pamh, item_type, item);
+	if (rc == PAM_SUCCESS) {
+		switch(item_type) {
+		case PAM_USER:
+			PWRAP_LOG(PWRAP_LOG_TRACE,
+				  "pwrap_set_item PAM_USER=%s",
+				  (char *)item);
+			break;
+		case PAM_SERVICE:
+			PWRAP_LOG(PWRAP_LOG_TRACE,
+				  "pwrap_set_item PAM_SERVICE=%s",
+				  (char *)item);
+			break;
+		case PAM_USER_PROMPT:
+			PWRAP_LOG(PWRAP_LOG_TRACE,
+				  "pwrap_set_item PAM_USER_PROMPT=%s",
+				  (char *)item);
+			break;
+		case PAM_TTY:
+			PWRAP_LOG(PWRAP_LOG_TRACE,
+				  "pwrap_set_item PAM_TTY=%s",
+				  (char *)item);
+			break;
+		case PAM_RUSER:
+			PWRAP_LOG(PWRAP_LOG_TRACE,
+				  "pwrap_set_item PAM_RUSER=%s",
+				  (char *)item);
+			break;
+		case PAM_RHOST:
+			PWRAP_LOG(PWRAP_LOG_TRACE,
+				  "pwrap_set_item PAM_RHOST=%s",
+				  (char *)item);
+			break;
+		case PAM_AUTHTOK:
+			PWRAP_LOG(PWRAP_LOG_TRACE,
+				  "pwrap_set_item PAM_AUTHTOK=%s",
+				  (char *)item);
+			break;
+		case PAM_OLDAUTHTOK:
+			PWRAP_LOG(PWRAP_LOG_TRACE,
+				  "pwrap_set_item PAM_OLDAUTHTOK=%s",
+				  (char *)item);
+			break;
+		case PAM_CONV:
+			PWRAP_LOG(PWRAP_LOG_TRACE,
+				  "pwrap_set_item PAM_CONV=%p",
+				  item);
+			break;
+		default:
+			PWRAP_LOG(PWRAP_LOG_TRACE,
+				  "pwrap_set_item item_type=%d item=%p",
+				  item_type, item);
+			break;
+		}
+	} else {
+		PWRAP_LOG(PWRAP_LOG_TRACE, "pwrap_set_item failed rc=%d", rc);
+	}
+
+	return rc;
 }
 
 int pam_set_item(pam_handle_t *pamh, int item_type, const void *item)
@@ -1046,8 +1171,14 @@ int pam_prompt(pam_handle_t *pamh,
 
 static const char *pwrap_pam_strerror(pam_handle_t *pamh, int errnum)
 {
+	const char *str;
 	PWRAP_LOG(PWRAP_LOG_TRACE, "pam_strerror errnum=%d", errnum);
-	return libpam_pam_strerror(pamh, errnum);
+
+	str = libpam_pam_strerror(pamh, errnum);
+
+	PWRAP_LOG(PWRAP_LOG_TRACE, "pam_strerror error=%s", str);
+
+	return str;
 }
 
 const char *pam_strerror(pam_handle_t *pamh, int errnum)
