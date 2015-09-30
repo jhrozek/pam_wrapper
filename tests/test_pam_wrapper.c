@@ -83,7 +83,7 @@ static void setup_passdb(void)
 	assert_true(strlen(passdb_path) + sizeof("/passdb") < PATH_MAX);
 	db = strncat(passdb_path, "/passdb", sizeof("/passdb"));
 
-	rv = setenv("PWRAP_PASSDB", passdb_path, 1);
+	rv = setenv("PAM_MATRIX_PASSWD", passdb_path, 1);
 	assert_int_equal(rv, 0);
 
 	fp = fopen(db, "w");
@@ -100,7 +100,7 @@ static void teardown_passdb(void)
 {
 	const char *db;
 
-	db = getenv("PWRAP_PASSDB");
+	db = getenv("PAM_MATRIX_PASSWD");
 	assert_non_null(db);
 	unlink(db);
 }
