@@ -19,7 +19,7 @@
 #define CRED_VAR	"CRED"
 #define CRED_VAR_SZ	sizeof(CRED_VAR)-1
 
-#define PAM_EXAMPLE_AUTH_DATA	    "pam_example:auth_data"
+#define PAM_EXAMPLE_AUTH_DATA	    "pam_matrix:auth_data"
 
 /* Skips leading tabs and spaces to find beginning of a key,
  * then walks over the key until a blank is find
@@ -53,18 +53,18 @@ struct pam_lib_items {
 	char *password;
 };
 
-struct pam_example_mod_items {
+struct pam_matrix_mod_items {
 	char *password;
 	char *service;
 };
 
-struct pam_example_ctx {
+struct pam_matrix_ctx {
 	struct pam_lib_items pli;
-	struct pam_example_mod_items pmi;
+	struct pam_matrix_mod_items pmi;
 };
 
-static int pam_example_mod_items_get(const char *username,
-				     struct pam_example_mod_items *pmi)
+static int pam_matrix_mod_items_get(const char *username,
+				     struct pam_matrix_mod_items *pmi)
 {
 	int rv;
 	const char *db;
@@ -140,7 +140,7 @@ fail:
 	return rv;
 }
 
-static int pam_example_lib_items_put(struct pam_lib_items *pli)
+static int pam_matrix_lib_items_put(struct pam_lib_items *pli)
 {
 	int rv;
 	const char *db;
@@ -241,7 +241,7 @@ done:
 	return rv;
 }
 
-static void pam_example_mod_items_free(struct pam_example_mod_items *pmi)
+static void pam_matrix_mod_items_free(struct pam_matrix_mod_items *pmi)
 {
 	if (pmi == NULL) {
 		return;
@@ -251,7 +251,7 @@ static void pam_example_mod_items_free(struct pam_example_mod_items *pmi)
 	free(pmi->service);
 }
 
-static int pam_example_read_password(pam_handle_t *pamh,
+static int pam_matrix_read_password(pam_handle_t *pamh,
 				     int authtok_item,
 				     const char *prompt1,
 				     const char *prompt2,
@@ -337,7 +337,7 @@ static int pam_lib_items_get(pam_handle_t *pamh,
 	return PAM_SUCCESS;
 }
 
-static int pam_example_get(pam_handle_t *pamh, struct pam_example_ctx *pe_ctx)
+static int pam_matrix_get(pam_handle_t *pamh, struct pam_matrix_ctx *pe_ctx)
 {
     int rv;
 
@@ -346,7 +346,7 @@ static int pam_example_get(pam_handle_t *pamh, struct pam_example_ctx *pe_ctx)
 		return rv;
     }
 
-    rv = pam_example_mod_items_get(pe_ctx->pli.username, &pe_ctx->pmi);
+    rv = pam_matrix_mod_items_get(pe_ctx->pli.username, &pe_ctx->pmi);
     if (rv != PAM_SUCCESS) {
 		return PAM_AUTHINFO_UNAVAIL;
     }
@@ -354,12 +354,12 @@ static int pam_example_get(pam_handle_t *pamh, struct pam_example_ctx *pe_ctx)
     return PAM_SUCCESS;
 }
 
-static void pam_example_free(struct pam_example_ctx *pe_ctx)
+static void pam_matrix_free(struct pam_matrix_ctx *pe_ctx)
 {
-	pam_example_mod_items_free(&pe_ctx->pmi);
+	pam_matrix_mod_items_free(&pe_ctx->pmi);
 }
 
-static int _pam_example_auth(struct pam_example_ctx *pctx)
+static int _pam_matrix_auth(struct pam_matrix_ctx *pctx)
 {
 	int rv = PAM_AUTH_ERR;
 
@@ -372,11 +372,11 @@ static int _pam_example_auth(struct pam_example_ctx *pctx)
 	return rv;
 }
 
-static int pam_example_auth(struct pam_example_ctx *pctx)
+static int pam_matrix_auth(struct pam_matrix_ctx *pctx)
 {
 	int rv = PAM_AUTH_ERR;
 
-	rv = _pam_example_auth(pctx);
+	rv = _pam_matrix_auth(pctx);
 
 	wipe_authtok(pctx->pli.password);
 	wipe_authtok(pctx->pmi.password);
@@ -388,29 +388,29 @@ PAM_EXTERN int
 pam_sm_authenticate(pam_handle_t *pamh, int flags,
 		    int argc, const char *argv[])
 {
-	struct pam_example_ctx pctx;
+	struct pam_matrix_ctx pctx;
 	int rv;
 
 	(void) flags; /* unused */
 	(void) argc;  /* unused */
 	(void) argv;  /* unused */
 
-	memset(&pctx, 0, sizeof(struct pam_example_ctx));
+	memset(&pctx, 0, sizeof(struct pam_matrix_ctx));
 
-	rv = pam_example_get(pamh, &pctx);
+	rv = pam_matrix_get(pamh, &pctx);
 	if (rv != PAM_SUCCESS) {
 		goto done;
 	}
 
-	rv = pam_example_read_password(pamh, PAM_AUTHTOK, "Password: ", NULL,
+	rv = pam_matrix_read_password(pamh, PAM_AUTHTOK, "Password: ", NULL,
 				       (const void **) &pctx.pli.password);
 	if (rv != PAM_SUCCESS) {
 		return PAM_AUTHINFO_UNAVAIL;
 	}
 
-	rv = pam_example_auth(&pctx);
+	rv = pam_matrix_auth(&pctx);
 done:
-	pam_example_free(&pctx);
+	pam_matrix_free(&pctx);
 	return rv;
 }
 
@@ -418,7 +418,7 @@ PAM_EXTERN int
 pam_sm_setcred(pam_handle_t *pamh, int flags,
 	       int argc, const char *argv[])
 {
-	struct pam_example_ctx pctx;
+	struct pam_matrix_ctx pctx;
 	int rv;
 	char cred[PATH_MAX + CRED_VAR_SZ];
 
@@ -426,9 +426,9 @@ pam_sm_setcred(pam_handle_t *pamh, int flags,
 	(void) argc;  /* unused */
 	(void) argv;  /* unused */
 
-	memset(&pctx, 0, sizeof(struct pam_example_ctx));
+	memset(&pctx, 0, sizeof(struct pam_matrix_ctx));
 
-	rv = pam_example_get(pamh, &pctx);
+	rv = pam_matrix_get(pamh, &pctx);
 	if (rv != PAM_SUCCESS) {
 		goto done;
 	}
@@ -448,7 +448,7 @@ pam_sm_setcred(pam_handle_t *pamh, int flags,
 
 	rv = PAM_SUCCESS;
 done:
-	pam_example_free(&pctx);
+	pam_matrix_free(&pctx);
 	return rv;
 }
 
@@ -456,16 +456,16 @@ PAM_EXTERN int
 pam_sm_acct_mgmt(pam_handle_t *pamh, int flags,
 		 int argc, const char *argv[])
 {
-	struct pam_example_ctx pctx;
+	struct pam_matrix_ctx pctx;
 	int rv;
 
 	(void) flags; /* unused */
 	(void) argc;  /* unused */
 	(void) argv;  /* unused */
 
-	memset(&pctx, 0, sizeof(struct pam_example_ctx));
+	memset(&pctx, 0, sizeof(struct pam_matrix_ctx));
 
-	rv = pam_example_get(pamh, &pctx);
+	rv = pam_matrix_get(pamh, &pctx);
 	if (rv != PAM_SUCCESS) {
 		goto done;
 	}
@@ -479,7 +479,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags,
 
 	rv = PAM_PERM_DENIED;
 done:
-	pam_example_free(&pctx);
+	pam_matrix_free(&pctx);
 	return rv;
 }
 
@@ -487,7 +487,7 @@ PAM_EXTERN int
 pam_sm_open_session(pam_handle_t *pamh, int flags,
 		    int argc, const char *argv[])
 {
-	struct pam_example_ctx pctx;
+	struct pam_matrix_ctx pctx;
 	int rv;
 	char home[PATH_MAX + HOME_VAR_SZ];
 
@@ -495,9 +495,9 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
 	(void) argc;  /* unused */
 	(void) argv;  /* unused */
 
-	memset(&pctx, 0, sizeof(struct pam_example_ctx));
+	memset(&pctx, 0, sizeof(struct pam_matrix_ctx));
 
-	rv = pam_example_get(pamh, &pctx);
+	rv = pam_matrix_get(pamh, &pctx);
 	if (rv != PAM_SUCCESS) {
 		goto done;
 	}
@@ -517,7 +517,7 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
 
 	rv = PAM_SUCCESS;
 done:
-	pam_example_free(&pctx);
+	pam_matrix_free(&pctx);
 	return rv;
 }
 
@@ -525,16 +525,16 @@ PAM_EXTERN int
 pam_sm_close_session(pam_handle_t *pamh, int flags,
 		     int argc, const char *argv[])
 {
-	struct pam_example_ctx pctx;
+	struct pam_matrix_ctx pctx;
 	int rv;
 
 	(void) flags; /* unused */
 	(void) argc;  /* unused */
 	(void) argv;  /* unused */
 
-	memset(&pctx, 0, sizeof(struct pam_example_ctx));
+	memset(&pctx, 0, sizeof(struct pam_matrix_ctx));
 
-	rv = pam_example_get(pamh, &pctx);
+	rv = pam_matrix_get(pamh, &pctx);
 	if (rv != PAM_SUCCESS) {
 		goto done;
 	}
@@ -546,11 +546,11 @@ pam_sm_close_session(pam_handle_t *pamh, int flags,
 
 	rv = PAM_SUCCESS;
 done:
-	pam_example_free(&pctx);
+	pam_matrix_free(&pctx);
 	return rv;
 }
 
-static void pam_example_stamp_destructor(pam_handle_t *pamh,
+static void pam_matrix_stamp_destructor(pam_handle_t *pamh,
 					 void *data,
 					 int error_status)
 {
@@ -564,7 +564,7 @@ PAM_EXTERN int
 pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 		 int argc, const char *argv[])
 {
-	struct pam_example_ctx pctx;
+	struct pam_matrix_ctx pctx;
 	const char *old_pass;
 	int rv;
 	time_t *auth_stamp = NULL;
@@ -574,15 +574,15 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 	(void) argc;  /* unused */
 	(void) argv;  /* unused */
 
-	memset(&pctx, 0, sizeof(struct pam_example_ctx));
+	memset(&pctx, 0, sizeof(struct pam_matrix_ctx));
 
-	rv = pam_example_get(pamh, &pctx);
+	rv = pam_matrix_get(pamh, &pctx);
 	if (rv != PAM_SUCCESS) {
 		goto done;
 	}
 
 	if (flags & PAM_PRELIM_CHECK) {
-		rv = pam_example_read_password(
+		rv = pam_matrix_read_password(
 					pamh, PAM_OLDAUTHTOK,
 					"Old password: ", NULL,
 					(const void **) &pctx.pli.password);
@@ -599,12 +599,12 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 		*auth_stamp = time(NULL);
 
 		rv = pam_set_data(pamh, PAM_EXAMPLE_AUTH_DATA,
-				auth_stamp, pam_example_stamp_destructor);
+				auth_stamp, pam_matrix_stamp_destructor);
 		if (rv != PAM_SUCCESS) {
 			goto done;
 		}
 
-		rv = pam_example_auth(&pctx);
+		rv = pam_matrix_auth(&pctx);
 	} else if (flags & PAM_UPDATE_AUTHTOK) {
 		rv = pam_get_item(pamh,
 				  PAM_OLDAUTHTOK,
@@ -621,7 +621,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 			goto done;
 		}
 
-		rv = pam_example_read_password(pamh, PAM_AUTHTOK,
+		rv = pam_matrix_read_password(pamh, PAM_AUTHTOK,
 					"New Password :",
 					"Verify New Password :",
 					(const void **) &pctx.pli.password);
@@ -630,12 +630,12 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 			goto done;
 		}
 
-		rv = pam_example_lib_items_put(&pctx.pli);
+		rv = pam_matrix_lib_items_put(&pctx.pli);
 	} else {
 		rv = PAM_SYSTEM_ERR;
 	}
 
 done:
-	pam_example_free(&pctx);
+	pam_matrix_free(&pctx);
 	return rv;
 }
