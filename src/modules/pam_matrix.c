@@ -74,7 +74,7 @@ static int pam_matrix_mod_items_get(const char *username,
 	char *file_password = NULL;
 	char *file_svc = NULL;
 
-	db = getenv("PWRAP_PASSDB");
+	db = getenv("PAM_MATRIX_PASSWD");
 	if (db == NULL) {
 		rv = PAM_AUTHINFO_UNAVAIL;
 		goto fail;
@@ -152,7 +152,7 @@ static int pam_matrix_lib_items_put(struct pam_lib_items *pli)
 	char *file_password = NULL;
 	char *file_svc = NULL;
 
-	db = getenv("PWRAP_PASSDB");
+	db = getenv("PAM_MATRIX_PASSWD");
 	if (db == NULL) {
 		rv = PAM_AUTHINFO_UNAVAIL;
 		goto done;

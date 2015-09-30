@@ -15,16 +15,9 @@ else ()
 	set(TEST_ENVIRONMENT LD_PRELOAD=${PAM_WRAPPER_LOCATION};PAM_WRAPPER=1;PAM_WRAPPER_CONFDIR=${CMAKE_CURRENT_BINARY_DIR}/services)
 endif ()
 
-add_library(pam_matrix MODULE pam_matrix.c)
-set_property(TARGET pam_matrix PROPERTY PREFIX "")
-
 set(PAM_LIBRARIES
-	pam
-	pam_misc)
-
-target_link_libraries(pam_matrix
-	${PAM_LIBRARIES})
-
+    pam
+    pam_misc)
 
 add_cmocka_test(test_pam_wrapper test_pam_wrapper.c ${CMOCKA_LIBRARY} ${PAM_LIBRARIES})
 set_property(
