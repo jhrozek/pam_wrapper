@@ -745,11 +745,18 @@ static void pwrap_init(void)
 		exit(1);
 	}
 
-	snprintf(pam_path,
-		 sizeof(pam_path),
-		 "/usr/lib%s/%s",
-		 suffix,
-		 pam_library);
+	if (pam_library[0] == '/') {
+		snprintf(pam_path,
+			 sizeof(pam_path),
+			 "%s",
+			 pam_library);
+	} else {
+		snprintf(pam_path,
+			 sizeof(pam_path),
+			 "/usr/lib%s/%s",
+			 suffix,
+			 pam_library);
+	}
 
 	PWRAP_LOG(PWRAP_LOG_DEBUG, "Copy %s to %s", pam_path, pwrap.pam_library);
 	rc = p_copy(pam_path, pwrap.pam_library, pwrap.config_dir, 0644);
