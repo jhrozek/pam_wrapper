@@ -638,6 +638,10 @@ static void pwrap_init(void)
 	char pam_path[1024] = { 0 };
 	ssize_t ret;
 
+	if (!pam_wrapper_enabled()) {
+		return;
+	}
+
 	if (pwrap.initialised) {
 		return;
 	}
@@ -745,12 +749,6 @@ static void pwrap_init(void)
 
 	pwrap.initialised = true;
 
-	env = getenv("PAM_WRAPPER");
-	if (env != NULL && env[0] == '1') {
-
-		pwrap.enabled = true;
-	}
-
 	env = getenv("PAM_WRAPPER_CONFDIR");
 	if (env == NULL) {
 		PWRAP_LOG(PWRAP_LOG_ERROR, "No config file");
@@ -768,6 +766,24 @@ static void pwrap_init(void)
 
 bool pam_wrapper_enabled(void)
 {
+	const char *env;
+
+	pwrap.enabled = false;
+
+	env = getenv("PAM_WRAPPER");
+	if (env != NULL && env[0] == '1') {
+		pwrap.enabled = true;
+	}
+
+	if (pwrap.enabled) {
+		pwrap.enabled = false;
+
+		env = getenv("PAM_WRAPPER_CONFDIR");
+		if (env != NULL && env[0] != '\0') {
+			pwrap.enabled = true;
+		}
+	}
+
 	return pwrap.enabled;
 }
 
