@@ -675,22 +675,29 @@ static void pwrap_init(void)
 
 	PWRAP_LOG(PWRAP_LOG_DEBUG, "Initialize pam_wrapper");
 
-	for (i = 0; i < 10; i++) {
+	for (i = 0; i < 36; i++) {
 		struct stat sb;
+		char c;
 
-		tmp_config_dir[len - 1] = (char)(i + 48);
-		PWRAP_LOG(PWRAP_LOG_TRACE,
-			  "Check pam_wrapper dir %s already exists",
-			  tmp_config_dir);
+		if (i < 10) {
+			c = (char)(i + 48);
+		} else {
+			c = (char)(i + 87);
+		}
+
+		tmp_config_dir[len - 1] = c;
 		rc = lstat(tmp_config_dir, &sb);
 		if (rc == 0) {
+			PWRAP_LOG(PWRAP_LOG_TRACE,
+				  "Check pam_wrapper dir %s already exists",
+				  tmp_config_dir);
 			continue;
 		} else if (errno == ENOENT) {
 			break;
 		}
 	}
 
-	if (i == 10) {
+	if (i == 36) {
 		PWRAP_LOG(PWRAP_LOG_ERROR,
 			  "Failed to find a possible path to create pam_wrapper config dir: %s",
 			  tmp_config_dir);
@@ -1212,6 +1219,8 @@ static int p_rmdirs(const char *path) {
 	struct stat sb;
 	char *fname;
 
+	return 0;
+
 	if ((d = opendir(path)) != NULL) {
 		while(stat(path, &sb) == 0) {
 			/* if we can remove the directory we're done */
@@ -1288,6 +1297,9 @@ void pwrap_destructor(void)
 		return;
 	}
 
+	PWRAP_LOG(PWRAP_LOG_TRACE,
+		  "destructor called for pam_wrapper dir %s",
+		  pwrap.config_dir);
 	env = getenv("PAM_WRAPPER_KEEP_DIR");
 	if (env == NULL || env[0] != '1') {
 		p_rmdirs(pwrap.config_dir);
