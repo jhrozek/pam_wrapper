@@ -548,6 +548,31 @@ static void test_pam_strerror(void **state)
 	assert_non_null(s);
 }
 
+static void test_pam_authenticate_db_opt(void **state)
+{
+	int rv;
+	struct pwrap_test_ctx *test_ctx;
+
+	const char *testuser_authtoks[] = {
+		"secret_ro",
+		NULL,
+	};
+	struct pwrap_conv_data testuser_auth_conv_data = {
+		.authtoks = testuser_authtoks,
+		.authtok_index = 0,
+	};
+
+	test_ctx = (struct pwrap_test_ctx *) *state;
+
+	test_ctx->conv.appdata_ptr = (void *) &testuser_auth_conv_data;
+	rv = pam_start("pwrap_pam_opt", "testuser_ro",
+		       &test_ctx->conv, &test_ctx->ph);
+	assert_int_equal(rv, PAM_SUCCESS);
+
+	rv = pam_authenticate(test_ctx->ph, 0);
+	assert_int_equal(rv, PAM_SUCCESS);
+}
+
 int main(void) {
 	int rc;
 
@@ -590,6 +615,9 @@ int main(void) {
 						teardown),
 		cmocka_unit_test_setup_teardown(test_pam_strerror,
 						setup_noconv,
+						teardown),
+		cmocka_unit_test_setup_teardown(test_pam_authenticate_db_opt,
+						setup_ctx_only,
 						teardown),
 	};
 

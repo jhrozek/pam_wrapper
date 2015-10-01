@@ -8,6 +8,12 @@ include_directories(
 
 configure_file(services/pwrap_pam.in ${CMAKE_CURRENT_BINARY_DIR}/services/pwrap_pam @ONLY)
 
+# Some tests use a passdb as argument for pam_matrix
+set(PASSDB_PATH
+	${CMAKE_CURRENT_BINARY_DIR}/passdb_ro)
+configure_file(passdb_ro ${PASSDB_PATH} @ONLY)
+configure_file(services/pwrap_pam_opt.in ${CMAKE_CURRENT_BINARY_DIR}/services/pwrap_pam_opt @ONLY)
+
 if (OSX)
 	set(TEST_ENVIRONMENT DYLD_FORCE_FLAT_NAMESPACE=1;DYLD_INSERT_LIBRARIES=${PAM_WRAPPER_LOCATION};PAM_WRAPPER=1;PAM_WRAPPER_CONFDIR=${CMAKE_CURRENT_BINARY_DIR}/services})
 	add_definitions(-DOSX)
