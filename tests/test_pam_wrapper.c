@@ -89,8 +89,8 @@ static void setup_passdb(void)
 	fp = fopen(db, "w");
 	assert_non_null(fp);
 
-	fprintf(fp, "testuser\tsecret\tpwrap_pam\n");
-	fprintf(fp, "testuser2\tsecret\tpwrap_wrong_svc");
+	fprintf(fp, "testuser:secret:pwrap_pam\n");
+	fprintf(fp, "testuser2:secret:pwrap_wrong_svc");
 
 	fflush(fp);
 	fclose(fp);

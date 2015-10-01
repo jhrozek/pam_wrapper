@@ -1,0 +1,2 @@
+# The format is username:password:allowed_pam_svc
+testuser_ro:secret_ro:pwrap_pam_opt
