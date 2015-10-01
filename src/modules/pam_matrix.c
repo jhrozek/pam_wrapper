@@ -21,6 +21,8 @@
 
 #define PAM_EXAMPLE_AUTH_DATA	    "pam_matrix:auth_data"
 
+#define PASSDB_KEY	"passdb="
+
 /* Skips leading tabs and spaces to find beginning of a key,
  * then walks over the key until a blank is find
  */
@@ -59,26 +61,22 @@ struct pam_matrix_mod_items {
 };
 
 struct pam_matrix_ctx {
+	const char *passdb;
+
 	struct pam_lib_items pli;
 	struct pam_matrix_mod_items pmi;
 };
 
-static int pam_matrix_mod_items_get(const char *username,
-				     struct pam_matrix_mod_items *pmi)
+static int pam_matrix_mod_items_get(const char *db,
+				    const char *username,
+				    struct pam_matrix_mod_items *pmi)
 {
 	int rv;
-	const char *db;
 	FILE *fp = NULL;
 	char buf[BUFSIZ];
 	char *file_user = NULL;
 	char *file_password = NULL;
 	char *file_svc = NULL;
-
-	db = getenv("PAM_MATRIX_PASSWD");
-	if (db == NULL) {
-		rv = PAM_AUTHINFO_UNAVAIL;
-		goto fail;
-	}
 
 	fp = fopen(db, "r");
 	if (fp == NULL) {
@@ -140,10 +138,10 @@ fail:
 	return rv;
 }
 
-static int pam_matrix_lib_items_put(struct pam_lib_items *pli)
+static int pam_matrix_lib_items_put(const char *db,
+				    struct pam_lib_items *pli)
 {
 	int rv;
-	const char *db;
 	FILE *fp = NULL;
 	FILE *fp_tmp = NULL;
 	char buf[BUFSIZ];
@@ -151,12 +149,6 @@ static int pam_matrix_lib_items_put(struct pam_lib_items *pli)
 	char *file_user = NULL;
 	char *file_password = NULL;
 	char *file_svc = NULL;
-
-	db = getenv("PAM_MATRIX_PASSWD");
-	if (db == NULL) {
-		rv = PAM_AUTHINFO_UNAVAIL;
-		goto done;
-	}
 
 	rv = snprintf(template, sizeof(template),
 		      "%s.XXXXXX", db);
@@ -337,16 +329,47 @@ static int pam_lib_items_get(pam_handle_t *pamh,
 	return PAM_SUCCESS;
 }
 
-static int pam_matrix_get(pam_handle_t *pamh, struct pam_matrix_ctx *pe_ctx)
+static void eval_args(struct pam_matrix_ctx *pe_ctx,
+		      int argc,
+		      const char *argv[])
+{
+	for (; argc-- > 0; ++argv) {
+		if (strncmp(*argv, PASSDB_KEY, strlen(PASSDB_KEY)) == 0) {
+			if (*(*argv+strlen(PASSDB_KEY)) == '\0') {
+				pe_ctx->passdb = NULL;
+			} else {
+				pe_ctx->passdb = *argv+strlen(PASSDB_KEY);
+			}
+		}
+	}
+}
+
+static int pam_matrix_get(pam_handle_t *pamh,
+			  int argc,
+			  const char *argv[],
+			  struct pam_matrix_ctx *pe_ctx)
 {
     int rv;
+
+    eval_args(pe_ctx, argc, argv);
+
+    /* If no db is provided as argument, fall back to environment variable */
+    if (pe_ctx->passdb == NULL) {
+	pe_ctx->passdb = getenv("PAM_MATRIX_PASSWD");
+	if (pe_ctx->passdb == NULL) {
+		return PAM_AUTHINFO_UNAVAIL;
+	}
+    }
+
 
     rv = pam_lib_items_get(pamh, &pe_ctx->pli);
     if (rv != PAM_SUCCESS) {
 		return rv;
     }
 
-    rv = pam_matrix_mod_items_get(pe_ctx->pli.username, &pe_ctx->pmi);
+    rv = pam_matrix_mod_items_get(pe_ctx->passdb,
+				  pe_ctx->pli.username,
+				  &pe_ctx->pmi);
     if (rv != PAM_SUCCESS) {
 		return PAM_AUTHINFO_UNAVAIL;
     }
@@ -392,12 +415,10 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags,
 	int rv;
 
 	(void) flags; /* unused */
-	(void) argc;  /* unused */
-	(void) argv;  /* unused */
 
 	memset(&pctx, 0, sizeof(struct pam_matrix_ctx));
 
-	rv = pam_matrix_get(pamh, &pctx);
+	rv = pam_matrix_get(pamh, argc, argv, &pctx);
 	if (rv != PAM_SUCCESS) {
 		goto done;
 	}
@@ -423,12 +444,10 @@ pam_sm_setcred(pam_handle_t *pamh, int flags,
 	char cred[PATH_MAX + CRED_VAR_SZ];
 
 	(void) flags; /* unused */
-	(void) argc;  /* unused */
-	(void) argv;  /* unused */
 
 	memset(&pctx, 0, sizeof(struct pam_matrix_ctx));
 
-	rv = pam_matrix_get(pamh, &pctx);
+	rv = pam_matrix_get(pamh, argc, argv, &pctx);
 	if (rv != PAM_SUCCESS) {
 		goto done;
 	}
@@ -460,12 +479,10 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags,
 	int rv;
 
 	(void) flags; /* unused */
-	(void) argc;  /* unused */
-	(void) argv;  /* unused */
 
 	memset(&pctx, 0, sizeof(struct pam_matrix_ctx));
 
-	rv = pam_matrix_get(pamh, &pctx);
+	rv = pam_matrix_get(pamh, argc, argv, &pctx);
 	if (rv != PAM_SUCCESS) {
 		goto done;
 	}
@@ -492,12 +509,10 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
 	char home[PATH_MAX + HOME_VAR_SZ];
 
 	(void) flags; /* unused */
-	(void) argc;  /* unused */
-	(void) argv;  /* unused */
 
 	memset(&pctx, 0, sizeof(struct pam_matrix_ctx));
 
-	rv = pam_matrix_get(pamh, &pctx);
+	rv = pam_matrix_get(pamh, argc, argv, &pctx);
 	if (rv != PAM_SUCCESS) {
 		goto done;
 	}
@@ -529,12 +544,10 @@ pam_sm_close_session(pam_handle_t *pamh, int flags,
 	int rv;
 
 	(void) flags; /* unused */
-	(void) argc;  /* unused */
-	(void) argv;  /* unused */
 
 	memset(&pctx, 0, sizeof(struct pam_matrix_ctx));
 
-	rv = pam_matrix_get(pamh, &pctx);
+	rv = pam_matrix_get(pamh, argc, argv, &pctx);
 	if (rv != PAM_SUCCESS) {
 		goto done;
 	}
@@ -571,12 +584,10 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 	const time_t *auth_stamp_out = NULL;
 
 	(void) flags; /* unused */
-	(void) argc;  /* unused */
-	(void) argv;  /* unused */
 
 	memset(&pctx, 0, sizeof(struct pam_matrix_ctx));
 
-	rv = pam_matrix_get(pamh, &pctx);
+	rv = pam_matrix_get(pamh, argc, argv, &pctx);
 	if (rv != PAM_SUCCESS) {
 		goto done;
 	}
@@ -630,7 +641,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 			goto done;
 		}
 
-		rv = pam_matrix_lib_items_put(&pctx.pli);
+		rv = pam_matrix_lib_items_put(pctx.passdb, &pctx.pli);
 	} else {
 		rv = PAM_SYSTEM_ERR;
 	}
