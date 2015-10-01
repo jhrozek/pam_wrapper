@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <limits.h>
+#include <syslog.h>
 #include <security/pam_appl.h>
 #include <security/pam_ext.h>
 
@@ -573,6 +574,19 @@ static void test_pam_authenticate_db_opt(void **state)
 	assert_int_equal(rv, PAM_SUCCESS);
 }
 
+static void test_pam_vsyslog(void **state)
+{
+	struct pwrap_test_ctx *test_ctx;
+	int rv;
+
+	test_ctx = (struct pwrap_test_ctx *) *state;
+	rv = pam_start("pwrap_pam", "testuser",
+		       &test_ctx->conv, &test_ctx->ph);
+	assert_int_equal(rv, PAM_SUCCESS);
+
+	pam_syslog(test_ctx->ph, LOG_INFO, "This is pam_wrapper test\n");
+}
+
 int main(void) {
 	int rc;
 
@@ -618,6 +632,9 @@ int main(void) {
 						teardown),
 		cmocka_unit_test_setup_teardown(test_pam_authenticate_db_opt,
 						setup_ctx_only,
+						teardown),
+		cmocka_unit_test_setup_teardown(test_pam_vsyslog,
+						setup_noconv,
 						teardown),
 	};
 
