@@ -23,21 +23,19 @@
 
 #define PASSDB_KEY	"passdb="
 
-/* Skips leading tabs and spaces to find beginning of a key,
- * then walks over the key until a blank is find
+/* Walks over the key until a colon (:) is find
  */
 #define NEXT_KEY(buf, key) do {					\
-	(key) = (buf) ? strpbrk((buf), " \t") : NULL;		\
+	(key) = (buf) ? strpbrk((buf), ":") : NULL;		\
 	if ((key) != NULL) {					\
 		(key)[0] = '\0';				\
 		(key)++;					\
 	}							\
 	while ((key) != NULL					\
-	       && (isblank((int)(key)[0]))) {			\
+		&& (isblank((int)(key)[0]))) {			\
 		(key)++;					\
 	}							\
 } while(0);
-
 
 #define wipe_authtok(tok) do {		\
 	if (tok != NULL) {		\
@@ -67,6 +65,7 @@ struct pam_matrix_ctx {
 	struct pam_matrix_mod_items pmi;
 };
 
+/* Search the passdb for user entry and fill his info into pmi */
 static int pam_matrix_mod_items_get(const char *db,
 				    const char *username,
 				    struct pam_matrix_mod_items *pmi)
@@ -87,6 +86,7 @@ static int pam_matrix_mod_items_get(const char *db,
 	while (fgets(buf, sizeof(buf), fp) != NULL) {
 		char *q;
 
+		/* Find the user, his password and allowed service */
 		file_user = buf;
 		file_password = NULL;
 
@@ -95,7 +95,6 @@ static int pam_matrix_mod_items_get(const char *db,
 			continue;
 		}
 
-		/* Find the user, his password and allowed service */
 		NEXT_KEY(file_user, file_password);
 		NEXT_KEY(file_password, file_svc);
 
@@ -138,6 +137,7 @@ fail:
 	return rv;
 }
 
+/* Replace authtok of user in the database with the one from pli */
 static int pam_matrix_lib_items_put(const char *db,
 				    struct pam_lib_items *pli)
 {
@@ -202,7 +202,7 @@ static int pam_matrix_lib_items_put(const char *db,
 			}
 		}
 
-		rv = fprintf(fp_tmp, "%s\t%s\t%s\n",
+		rv = fprintf(fp_tmp, "%s:%s:%s\n",
 			     file_user, file_password, file_svc);
 		if (rv < 0) {
 			rv = PAM_CRED_ERR;
@@ -243,6 +243,12 @@ static void pam_matrix_mod_items_free(struct pam_matrix_mod_items *pmi)
 	free(pmi->service);
 }
 
+/* Read user password. If both prompts are provided, then ask twice and
+ * assert that both passwords match.
+ *
+ * The authtok would be returned in _out_tok if needed and set in
+ * authtok_item as well
+ */
 static int pam_matrix_read_password(pam_handle_t *pamh,
 				     int authtok_item,
 				     const char *prompt1,
@@ -307,6 +313,8 @@ done:
 	return rv;
 }
 
+/* Retrieve user info -- username and service that were provided by
+ * pam_start */
 static int pam_lib_items_get(pam_handle_t *pamh,
 			     struct pam_lib_items *pli)
 {
@@ -329,6 +337,9 @@ static int pam_lib_items_get(pam_handle_t *pamh,
 	return PAM_SUCCESS;
 }
 
+/* Evaluate command line arguments and store info about them in the
+ * pam_matrix context
+ */
 static void eval_args(struct pam_matrix_ctx *pe_ctx,
 		      int argc,
 		      const char *argv[])
@@ -344,6 +355,9 @@ static void eval_args(struct pam_matrix_ctx *pe_ctx,
 	}
 }
 
+/* Retrieve info about the user who is logging in and find his
+ * record in the database
+ */
 static int pam_matrix_get(pam_handle_t *pamh,
 			  int argc,
 			  const char *argv[],
@@ -418,6 +432,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags,
 
 	memset(&pctx, 0, sizeof(struct pam_matrix_ctx));
 
+	/* Search the user info in database */
 	rv = pam_matrix_get(pamh, argc, argv, &pctx);
 	if (rv != PAM_SUCCESS) {
 		goto done;
@@ -426,15 +441,18 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags,
 	rv = pam_matrix_read_password(pamh, PAM_AUTHTOK, "Password: ", NULL,
 				       (const void **) &pctx.pli.password);
 	if (rv != PAM_SUCCESS) {
-		return PAM_AUTHINFO_UNAVAIL;
+		rv = PAM_AUTHINFO_UNAVAIL;
+		goto done;
 	}
 
+	/* Auth and get rid of the authtok */
 	rv = pam_matrix_auth(&pctx);
 done:
 	pam_matrix_free(&pctx);
 	return rv;
 }
 
+/* Really silly setcred function that just sets a pam environment variable */
 PAM_EXTERN int
 pam_sm_setcred(pam_handle_t *pamh, int flags,
 	       int argc, const char *argv[])
@@ -482,11 +500,13 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags,
 
 	memset(&pctx, 0, sizeof(struct pam_matrix_ctx));
 
+	/* Search the user info in database */
 	rv = pam_matrix_get(pamh, argc, argv, &pctx);
 	if (rv != PAM_SUCCESS) {
 		goto done;
 	}
 
+	/* Check if the allowed service matches the PAM service */
 	if (pctx.pli.service != NULL &&
 	    pctx.pmi.service != NULL &&
 	    strcmp(pctx.pli.service, pctx.pmi.service) == 0) {
@@ -500,6 +520,7 @@ done:
 	return rv;
 }
 
+/* Really silly session function that just sets a pam environment variable */
 PAM_EXTERN int
 pam_sm_open_session(pam_handle_t *pamh, int flags,
 		    int argc, const char *argv[])
@@ -536,6 +557,7 @@ done:
 	return rv;
 }
 
+/* Just unsets whatever session set */
 PAM_EXTERN int
 pam_sm_close_session(pam_handle_t *pamh, int flags,
 		     int argc, const char *argv[])
@@ -609,6 +631,9 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 		}
 		*auth_stamp = time(NULL);
 
+		/* Not really useful, just test that between the two phases,
+		 * data can be passed
+		 */
 		rv = pam_set_data(pamh, PAM_EXAMPLE_AUTH_DATA,
 				auth_stamp, pam_matrix_stamp_destructor);
 		if (rv != PAM_SUCCESS) {
@@ -641,6 +666,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 			goto done;
 		}
 
+		/* Write the new password to the db */
 		rv = pam_matrix_lib_items_put(pctx.passdb, &pctx.pli);
 	} else {
 		rv = PAM_SYSTEM_ERR;
