@@ -1284,6 +1284,10 @@ void pwrap_destructor(void)
 		dlclose(pwrap.libpam.handle);
 	}
 
+	if (!pwrap.initialised) {
+		return;
+	}
+
 	env = getenv("PAM_WRAPPER_KEEP_DIR");
 	if (env == NULL || env[0] != '1') {
 		p_rmdirs(pwrap.config_dir);
