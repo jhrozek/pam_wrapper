@@ -197,6 +197,11 @@ typedef int (*__libpam_pam_vprompt)(pam_handle_t *pamh,
 
 typedef const char * (*__libpam_pam_strerror)(pam_handle_t *pamh, int errnum);
 
+typedef void (*__libpam_pam_vsyslog)(const pam_handle_t *pamh,
+				     int priority,
+				     const char *fmt,
+				     va_list args);
+
 #define PWRAP_SYMBOL_ENTRY(i) \
 	union { \
 		__libpam_##i f; \
@@ -221,6 +226,7 @@ struct pwrap_libpam_symbols {
 	PWRAP_SYMBOL_ENTRY(pam_set_data);
 	PWRAP_SYMBOL_ENTRY(pam_vprompt);
 	PWRAP_SYMBOL_ENTRY(pam_strerror);
+	PWRAP_SYMBOL_ENTRY(pam_vsyslog);
 };
 
 struct pwrap {
@@ -468,6 +474,19 @@ static const char *libpam_pam_strerror(pam_handle_t *pamh, int errnum)
 	pwrap_bind_symbol_libpam(pam_strerror);
 
 	return pwrap.libpam.symbols._libpam_pam_strerror.f(pamh, errnum);
+}
+
+static void libpam_pam_vsyslog(const pam_handle_t *pamh,
+			       int priority,
+			       const char *fmt,
+			       va_list args)
+{
+	pwrap_bind_symbol_libpam(pam_vsyslog);
+
+	pwrap.libpam.symbols._libpam_pam_vsyslog.f(pamh,
+						   priority,
+						   fmt,
+						   args);
 }
 
 /*********************************************************
@@ -1180,6 +1199,34 @@ static const char *pwrap_pam_strerror(pam_handle_t *pamh, int errnum)
 const char *pam_strerror(pam_handle_t *pamh, int errnum)
 {
 	return pwrap_pam_strerror(pamh, errnum);
+}
+
+static void pwrap_pam_vsyslog(const pam_handle_t *pamh,
+			      int priority,
+			      const char *fmt,
+			      va_list args)
+{
+	PWRAP_LOG(PWRAP_LOG_TRACE, "pwrap_pam_vsyslog called");
+	libpam_pam_vsyslog(pamh, priority, fmt, args);
+}
+
+void pam_vsyslog(const pam_handle_t *pamh,
+		 int priority,
+		 const char *fmt,
+		 va_list args)
+{
+	pwrap_pam_vsyslog(pamh, priority, fmt, args);
+}
+
+void pam_syslog(const pam_handle_t *pamh,
+	        int priority,
+	        const char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+	pwrap_pam_vsyslog(pamh, priority, fmt, args);
+	va_end(args);
 }
 
 /****************************
