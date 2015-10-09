@@ -1,4 +1,4 @@
 Name: @APPLICATION_NAME@
-Description: The uid_wrapper library
+Description: The pam_wrapper library
 Version: @APPLICATION_VERSION@
-Libs: @LIB_INSTALL_DIR@/@UID_WRAPPER_LIB@
+Libs: @LIB_INSTALL_DIR@/@PAM_WRAPPER_LIB@
