@@ -21,6 +21,30 @@ install(
   ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
 )
 
+set(pamtest_SOURCES
+	libpamtest.c
+)
+
+set(pamtest_HEADERS
+	${CMAKE_SOURCE_DIR}/include/libpamtest.h
+)
+include_directories(${CMAKE_SOURCE_DIR}/include)
+
+add_library(pamtest SHARED
+	    ${pamtest_SOURCES}
+	    ${pamtest_HEADERS}
+)
+target_link_libraries(pamtest
+			${PAM_LIBRARIES})
+
+install(
+  TARGETS
+    pamtest
+  RUNTIME DESTINATION ${BIN_INSTALL_DIR}
+  LIBRARY DESTINATION ${LIB_INSTALL_DIR}
+  ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
+)
+
 add_library(pam_matrix MODULE modules/pam_matrix.c)
 set_property(TARGET pam_matrix PROPERTY PREFIX "")
 

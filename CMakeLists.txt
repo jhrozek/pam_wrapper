@@ -49,6 +49,7 @@ configure_file(config.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config.h)
 
 # check subdirectories
 add_subdirectory(src)
+add_subdirectory(include)
 
 if (UNIT_TESTING)
     find_package(CMocka REQUIRED)
@@ -63,6 +64,16 @@ configure_file(pam_wrapper.pc.cmake ${CMAKE_CURRENT_BINARY_DIR}/pam_wrapper.pc @
 install(
   FILES
     ${CMAKE_CURRENT_BINARY_DIR}/pam_wrapper.pc
+  DESTINATION
+    ${LIB_INSTALL_DIR}/pkgconfig
+  COMPONENT
+    pkgconfig
+)
+
+configure_file(libpamtest.pc.cmake ${CMAKE_CURRENT_BINARY_DIR}/libpamtest.pc @ONLY)
+install(
+  FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/libpamtest.pc
   DESTINATION
     ${LIB_INSTALL_DIR}/pkgconfig
   COMPONENT
