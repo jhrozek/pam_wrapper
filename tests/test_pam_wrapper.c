@@ -15,6 +15,8 @@
 #include <security/pam_appl.h>
 #include <security/pam_ext.h>
 
+#include "libpamtest.h"
+
 struct pwrap_test_ctx {
 	struct pam_conv conv;
 	pam_handle_t *ph;
@@ -72,12 +74,14 @@ static int pwrap_conv(int num_msg, const struct pam_message **msgm,
 	return PAM_SUCCESS;
 }
 
-static void setup_passdb(void)
+static int setup_passdb(void **state)
 {
 	int rv;
 	const char *db;
 	FILE *fp = NULL;
 	char passdb_path[PATH_MAX];
+
+	(void) state;	/* unused */
 
 	db = getcwd(passdb_path, PATH_MAX);
 	assert_non_null(db);
@@ -95,22 +99,31 @@ static void setup_passdb(void)
 
 	fflush(fp);
 	fclose(fp);
+
+	return 0;
 }
 
-static void teardown_passdb(void)
+static int teardown_passdb(void **state)
 {
 	const char *db;
+
+	(void) state;	/* unused */
 
 	db = getenv("PAM_MATRIX_PASSWD");
 	assert_non_null(db);
 	unlink(db);
+
+	/* Don't pollute environment for other tests */
+	unsetenv("PAM_MATRIX_PASSWD");
+
+	return 0;
 }
 
 static int setup_ctx_only(void **state)
 {
 	struct pwrap_test_ctx *test_ctx;
 
-	setup_passdb();
+	setup_passdb(NULL);
 
 	test_ctx = malloc(sizeof(struct pwrap_test_ctx));
 	assert_non_null(test_ctx);
@@ -170,7 +183,7 @@ static int teardown(void **state)
 	struct pwrap_test_ctx *test_ctx;
 	int rv;
 
-	teardown_passdb();
+	teardown_passdb(NULL);
 
 	test_ctx = (struct pwrap_test_ctx *) *state;
 
@@ -182,80 +195,66 @@ static int teardown(void **state)
 
 static void test_pam_authenticate(void **state)
 {
-	int rv;
-	struct pwrap_test_ctx *test_ctx;
-
+	enum pamtest_err perr;
 	const char *testuser_authtoks[] = {
 		"secret",
 		NULL,
 	};
-	struct pwrap_conv_data testuser_auth_conv_data = {
-		.authtoks = testuser_authtoks,
-		.authtok_index = 0,
+	struct pamtest_case tests[] = {
+		{ PAMTEST_AUTHENTICATE, PAM_SUCCESS, 0, 0 },
+		{ PAMTEST_SENTINEL, 0, 0, 0 },
 	};
 
-	test_ctx = (struct pwrap_test_ctx *) *state;
+	(void) state;	/* unused */
 
-	test_ctx->conv.appdata_ptr = (void *) &testuser_auth_conv_data;
-	rv = pam_start("pwrap_pam", "testuser",
-		       &test_ctx->conv, &test_ctx->ph);
-	assert_int_equal(rv, PAM_SUCCESS);
-
-	rv = pam_authenticate(test_ctx->ph, 0);
-	assert_int_equal(rv, PAM_SUCCESS);
+	perr = pamtest("pwrap_pam", "testuser", testuser_authtoks, tests);
+	assert_int_equal(perr, PAMTEST_ERR_OK);
 }
 
 static void test_pam_authenticate_err(void **state)
 {
-	int rv;
-	struct pwrap_test_ctx *test_ctx;
-
+	enum pamtest_err perr;
 	const char *testuser_authtoks[] = {
 		"wrong_password",
 		NULL,
 	};
-	struct pwrap_conv_data testuser_auth_err_conv_data = {
-		.authtoks = testuser_authtoks,
-		.authtok_index = 0,
+	struct pamtest_case tests[] = {
+		{ PAMTEST_AUTHENTICATE, PAM_AUTH_ERR, 0, 0 },
+		{ PAMTEST_SENTINEL, 0, 0, 0 },
 	};
 
+	(void) state;	/* unused */
 
-	test_ctx = (struct pwrap_test_ctx *) *state;
-
-	test_ctx->conv.appdata_ptr = (void *) &testuser_auth_err_conv_data;
-	rv = pam_start("pwrap_pam", "testuser",
-			&test_ctx->conv, &test_ctx->ph);
-	assert_int_equal(rv, PAM_SUCCESS);
-
-	rv = pam_authenticate(test_ctx->ph, 0);
-	assert_int_equal(rv, PAM_AUTH_ERR);
+	perr = pamtest("pwrap_pam", "testuser", testuser_authtoks, tests);
+	assert_int_equal(perr, PAMTEST_ERR_OK);
 }
 
 static void test_pam_acct(void **state)
 {
-	int rv;
-	struct pwrap_test_ctx *test_ctx;
+	enum pamtest_err perr;
+	struct pamtest_case tests[] = {
+		{ PAMTEST_ACCOUNT, PAM_SUCCESS, 0, 0 },
+		{ PAMTEST_SENTINEL, 0, 0, 0 },
+	};
 
-	test_ctx = (struct pwrap_test_ctx *) *state;
+	(void) state;	/* unused */
 
-	rv = pam_acct_mgmt(test_ctx->ph, 0);
-	assert_int_equal(rv, PAM_SUCCESS);
+	perr = pamtest("pwrap_pam", "testuser", NULL, tests);
+	assert_int_equal(perr, PAMTEST_ERR_OK);
 }
 
 static void test_pam_acct_err(void **state)
 {
-	int rv;
-	struct pwrap_test_ctx *test_ctx;
+	enum pamtest_err perr;
+	struct pamtest_case tests[] = {
+		{ PAMTEST_ACCOUNT, PAM_PERM_DENIED, 0, 0 },
+		{ PAMTEST_SENTINEL, 0, 0, 0 },
+	};
 
-	test_ctx = (struct pwrap_test_ctx *) *state;
+	(void) state;	/* unused */
 
-	test_ctx->conv.appdata_ptr = (void *) "secret";
-	rv = pam_start("pwrap_pam", "testuser2",
-			&test_ctx->conv, &test_ctx->ph);
-	assert_int_equal(rv, PAM_SUCCESS);
-
-	rv = pam_acct_mgmt(test_ctx->ph, 0);
-	assert_int_equal(rv, PAM_PERM_DENIED);
+	perr = pamtest("pwrap_pam", "testuser2", NULL, tests);
+	assert_int_equal(perr, PAMTEST_ERR_OK);
 }
 
 static inline void free_vlist(char **vlist)
@@ -319,100 +318,121 @@ static void test_pam_env_functions(void **state)
 	free_vlist(vlist);
 }
 
+static const char *string_in_list(char **list, const char *key)
+{
+	char key_eq[strlen(key)+1+1]; /* trailing NULL and '=' */
+
+	if (list == NULL || key == NULL) {
+		return NULL;
+	}
+
+	snprintf(key_eq, sizeof(key_eq), "%s=", key);
+	for (size_t i = 0; list[i] != NULL; i++) {
+		if (strncmp(list[i], key_eq, sizeof(key_eq)-1) == 0) {
+			return list[i] + sizeof(key_eq)-1;
+		}
+	}
+
+	return NULL;
+}
+
 static void test_pam_session(void **state)
 {
-	int rv;
+	enum pamtest_err perr;
 	const char *v;
-	struct pwrap_test_ctx *test_ctx;
+	struct pamtest_case tests[] = {
+		{ PAMTEST_OPEN_SESSION, PAM_SUCCESS, 0, 0 },
+		{ PAMTEST_GETENVLIST, PAM_SUCCESS, 0, 0 },
+		{ PAMTEST_CLOSE_SESSION, PAM_SUCCESS, 0, 0 },
+		{ PAMTEST_GETENVLIST, PAM_SUCCESS, 0, 0 },
+		{ PAMTEST_SENTINEL, 0, 0, 0 },
+	};
 
-	test_ctx = (struct pwrap_test_ctx *) *state;
+	(void) state;	/* unused */
 
-	v = pam_getenv(test_ctx->ph, "HOMEDIR");
-	assert_null(v);
+	perr = pamtest("pwrap_pam", "testuser", NULL, tests);
+	assert_int_equal(perr, PAMTEST_ERR_OK);
 
-	rv = pam_open_session(test_ctx->ph, 0);
-	assert_int_equal(rv, PAM_SUCCESS);
-
-	v = pam_getenv(test_ctx->ph, "HOMEDIR");
+	v = string_in_list(tests[1].case_out.envlist, "HOMEDIR");
 	assert_non_null(v);
 	assert_string_equal(v, "/home/testuser");
+
+	pamtest_free_env(tests[1].case_out.envlist);
+
+	/* environment is cleared after session close */
+	assert_non_null(tests[3].case_out.envlist);
+	assert_null(tests[3].case_out.envlist[0]);
+	pamtest_free_env(tests[3].case_out.envlist);
 }
 
 static void test_pam_chauthtok(void **state)
 {
-	int rv;
-	struct pwrap_test_ctx *test_ctx;
-
+	enum pamtest_err perr;
 	const char *testuser_new_authtoks[] = {
-		"secret",
-		"new_secret",
-		"new_secret",
+		"secret",	    /* old password */
+		"new_secret",	    /* new password */
+		"new_secret",	    /* verify new password */
+		"new_secret",	    /* login with the new password */
 		NULL,
 	};
-	struct pwrap_conv_data testuser_chpass_conv_data = {
-		.authtoks = testuser_new_authtoks,
-		.authtok_index = 0,
+	struct pamtest_case tests[] = {
+		{ PAMTEST_CHAUTHTOK, PAM_SUCCESS, 0, 0 },
+		{ PAMTEST_AUTHENTICATE, PAM_SUCCESS, 0, 0 },
+		{ PAMTEST_SENTINEL, 0, 0, 0 },
 	};
 
-	test_ctx = (struct pwrap_test_ctx *) *state;
+	(void) state;	/* unused */
 
-	test_ctx->conv.appdata_ptr = (void *) &testuser_chpass_conv_data;
-	rv = pam_start("pwrap_pam", "testuser",
-		       &test_ctx->conv, &test_ctx->ph);
-	assert_int_equal(rv, PAM_SUCCESS);
-
-	rv = pam_chauthtok(test_ctx->ph, 0);
-	assert_int_equal(rv, PAM_SUCCESS);
-
-	testuser_chpass_conv_data.authtok_index = 1;
-	rv = pam_authenticate(test_ctx->ph, 0);
-	assert_int_equal(rv, PAM_SUCCESS);
+	perr = pamtest("pwrap_pam", "testuser", testuser_new_authtoks, tests);
+	assert_int_equal(perr, PAMTEST_ERR_OK);
 }
 
 static void test_pam_chauthtok_prelim_failed(void **state)
 {
-	int rv;
-	struct pwrap_test_ctx *test_ctx;
-
+	enum pamtest_err perr;
 	const char *testuser_new_authtoks[] = {
-		"wrong_secret",
-		"new_secret",
-		"new_secret",
+		"wrong_secret",	    /* old password */
+		"new_secret",	    /* new password */
+		"new_secret",	    /* verify new password */
 		NULL,
 	};
-	struct pwrap_conv_data testuser_chpass_conv_data = {
-		.authtoks = testuser_new_authtoks,
-		.authtok_index = 0,
+	struct pamtest_case tests[] = {
+		{ PAMTEST_CHAUTHTOK, PAM_AUTH_ERR, 0, 0 },
+		{ PAMTEST_SENTINEL, 0, 0, 0 },
 	};
 
-	test_ctx = (struct pwrap_test_ctx *) *state;
+	(void) state;	/* unused */
 
-	test_ctx->conv.appdata_ptr = (void *) &testuser_chpass_conv_data;
-	rv = pam_start("pwrap_pam", "testuser",
-		       &test_ctx->conv, &test_ctx->ph);
-	assert_int_equal(rv, PAM_SUCCESS);
-
-	rv = pam_chauthtok(test_ctx->ph, 0);
-	assert_int_equal(rv, PAM_AUTH_ERR);
+	perr = pamtest("pwrap_pam", "testuser", testuser_new_authtoks, tests);
+	assert_int_equal(perr, PAMTEST_ERR_OK);
 }
 
 static void test_pam_setcred(void **state)
 {
-	int rv;
+	enum pamtest_err perr;
 	const char *v;
-	struct pwrap_test_ctx *test_ctx;
+	struct pamtest_case tests[] = {
+		{ PAMTEST_GETENVLIST, PAM_SUCCESS, 0, 0 },
+		{ PAMTEST_SETCRED, PAM_SUCCESS, 0, 0 },
+		{ PAMTEST_GETENVLIST, PAM_SUCCESS, 0, 0 },
+		{ PAMTEST_SENTINEL, 0, 0, 0 },
+	};
 
-	test_ctx = (struct pwrap_test_ctx *) *state;
+	(void) state;	/* unused */
 
-	v = pam_getenv(test_ctx->ph, "CRED");
-	assert_null(v);
+	perr = pamtest("pwrap_pam", "testuser", NULL, tests);
+	assert_int_equal(perr, PAMTEST_ERR_OK);
 
-	rv = pam_setcred(test_ctx->ph, 0);
-	assert_int_equal(rv, PAM_SUCCESS);
+	/* environment is clean before setcred */
+	assert_non_null(tests[0].case_out.envlist);
+	assert_null(tests[0].case_out.envlist[0]);
+	pamtest_free_env(tests[0].case_out.envlist);
 
-	v = pam_getenv(test_ctx->ph, "CRED");
+	/* and has an item after setcred */
+	v = string_in_list(tests[2].case_out.envlist, "CRED");
 	assert_non_null(v);
 	assert_string_equal(v, "/tmp/testuser");
+	pamtest_free_env(tests[2].case_out.envlist);
 }
 
 static void test_pam_item_functions(void **state)
@@ -551,27 +571,21 @@ static void test_pam_strerror(void **state)
 
 static void test_pam_authenticate_db_opt(void **state)
 {
-	int rv;
-	struct pwrap_test_ctx *test_ctx;
-
+	enum pamtest_err perr;
 	const char *testuser_authtoks[] = {
 		"secret_ro",
 		NULL,
 	};
-	struct pwrap_conv_data testuser_auth_conv_data = {
-		.authtoks = testuser_authtoks,
-		.authtok_index = 0,
+	struct pamtest_case tests[] = {
+		{ PAMTEST_AUTHENTICATE, PAM_SUCCESS, 0, 0 },
+		{ PAMTEST_SENTINEL, 0, 0, 0 },
 	};
 
-	test_ctx = (struct pwrap_test_ctx *) *state;
+	(void) state;	/* unused */
 
-	test_ctx->conv.appdata_ptr = (void *) &testuser_auth_conv_data;
-	rv = pam_start("pwrap_pam_opt", "testuser_ro",
-		       &test_ctx->conv, &test_ctx->ph);
-	assert_int_equal(rv, PAM_SUCCESS);
-
-	rv = pam_authenticate(test_ctx->ph, 0);
-	assert_int_equal(rv, PAM_SUCCESS);
+	perr = pamtest("pwrap_pam_opt", "testuser_ro",
+		       testuser_authtoks, tests);
+	assert_int_equal(perr, PAMTEST_ERR_OK);
 }
 
 static void test_pam_vsyslog(void **state)
@@ -595,32 +609,32 @@ int main(void) {
 						setup_noconv,
 						teardown_simple),
 		cmocka_unit_test_setup_teardown(test_pam_authenticate,
-						setup_ctx_only,
-						teardown),
+						setup_passdb,
+						teardown_passdb),
 		cmocka_unit_test_setup_teardown(test_pam_authenticate_err,
-						setup_noconv,
-						teardown),
+						setup_passdb,
+						teardown_passdb),
 		cmocka_unit_test_setup_teardown(test_pam_acct,
-						setup_noconv,
-						teardown),
+						setup_passdb,
+						teardown_passdb),
 		cmocka_unit_test_setup_teardown(test_pam_acct_err,
-						setup_noconv,
-						teardown),
+						setup_passdb,
+						teardown_passdb),
 		cmocka_unit_test_setup_teardown(test_pam_env_functions,
 						setup_noconv,
 						teardown),
 		cmocka_unit_test_setup_teardown(test_pam_session,
-						setup_noconv,
-						teardown),
+						setup_passdb,
+						teardown_passdb),
 		cmocka_unit_test_setup_teardown(test_pam_chauthtok,
-						setup_ctx_only,
-						teardown),
+						setup_passdb,
+						teardown_passdb),
 		cmocka_unit_test_setup_teardown(test_pam_chauthtok_prelim_failed,
-						setup_ctx_only,
-						teardown),
+						setup_passdb,
+						teardown_passdb),
 		cmocka_unit_test_setup_teardown(test_pam_setcred,
-						setup_noconv,
-						teardown),
+						setup_passdb,
+						teardown_passdb),
 		cmocka_unit_test_setup_teardown(test_pam_item_functions,
 						setup_noconv,
 						teardown),
@@ -632,7 +646,7 @@ int main(void) {
 						teardown),
 		cmocka_unit_test_setup_teardown(test_pam_authenticate_db_opt,
 						setup_ctx_only,
-						teardown),
+						teardown_simple),
 		cmocka_unit_test_setup_teardown(test_pam_vsyslog,
 						setup_noconv,
 						teardown),
