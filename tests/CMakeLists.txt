@@ -4,6 +4,7 @@ include_directories(
   ${CMAKE_BINARY_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMOCKA_INCLUDE_DIR}
+  ${CMAKE_SOURCE_DIR}/include
 )
 
 configure_file(services/pwrap_pam.in ${CMAKE_CURRENT_BINARY_DIR}/services/pwrap_pam @ONLY)
@@ -25,7 +26,13 @@ set(PAM_LIBRARIES
     pam
     pam_misc)
 
-add_cmocka_test(test_pam_wrapper test_pam_wrapper.c ${CMOCKA_LIBRARY} ${PAM_LIBRARIES})
+set(TEST_LIBRARIES
+    pamtest
+    ${CMOCKA_LIBRARY}
+    ${PAM_LIBRARIES}
+)
+
+add_cmocka_test(test_pam_wrapper test_pam_wrapper.c ${TEST_LIBRARIES})
 set_property(
     TEST
         test_pam_wrapper
