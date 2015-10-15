@@ -24,6 +24,7 @@
 #cmakedefine HAVE_SETEUID 1
 
 /*************************** LIBRARIES ***************************/
+#cmakedefine PAM_LIBRARY "${PAM_LIBRARY}"
 
 /**************************** OPTIONS ****************************/
 

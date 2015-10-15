@@ -44,6 +44,10 @@ check_function_exists(strncpy HAVE_STRNCPY)
 check_function_exists(vsnprintf HAVE_VSNPRINTF)
 check_function_exists(snprintf HAVE_SNPRINTF)
 
+# FUNCTIONS
+find_library(PAM_LIBRARY NAMES libpam.so.0 pam)
+set(PAM_LIBRARY ${PAM_LIBRARY})
+
 # OPTIONS
 
 if (LINUX)
