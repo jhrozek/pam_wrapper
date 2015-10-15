@@ -31,6 +31,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <dlfcn.h>
+#include <libgen.h>
 
 #include <ftw.h>
 
@@ -143,7 +144,7 @@ static void pwrap_log(enum pwrap_dbglvl_e dbglvl,
  * LIBC
  *****************/
 
-#define LIBPAM_NAME "libpam.so"
+#define LIBPAM_NAME "libpam.so.0"
 
 typedef int (*__libpam_pam_start)(const char *service_name,
 				  const char *user,
@@ -276,8 +277,8 @@ static void *pwrap_load_lib_handle(enum pwrap_lib lib)
 
 			snprintf(libpam_path,
 				 sizeof(libpam_path),
-				 "%s/libpam.so",
-				 pwrap.config_dir);
+				 "%s/%s",
+				 pwrap.config_dir, LIBPAM_NAME);
 
 			handle = dlopen(libpam_path, flags);
 			if (handle != NULL) {
@@ -652,7 +653,6 @@ static void pwrap_init(void)
 	const char *env;
 	uint32_t i;
 	int rc;
-	const char *suffix = "";
 	char pam_library[128] = { 0 };
 	char pam_path[1024] = { 0 };
 	ssize_t ret;
@@ -725,16 +725,8 @@ static void pwrap_init(void)
 		exit(1);
 	}
 
-	/* copy libpam.so */
-	if (sizeof(void *) == 8) {
-		suffix = "64";
-	}
-
-	snprintf(pam_path,
-		 sizeof(pam_path),
-		 "/usr/lib%s/%s",
-		 suffix,
-		 LIBPAM_NAME);
+	/* copy libpam.so.0 */
+	snprintf(pam_path, sizeof(pam_path), "%s", PAM_LIBRARY);
 	PWRAP_LOG(PWRAP_LOG_TRACE,
 		  "PAM path: %s",
 		  pam_path);
@@ -754,12 +746,25 @@ static void pwrap_init(void)
 			 "%s",
 			 pam_library);
 	} else {
+		char pam_path_cp[sizeof(pam_path)];
+		char *dname;
+
+		strncpy(pam_path_cp, pam_path, sizeof(pam_path_cp));
+
+		dname = dirname(pam_path_cp);
+		if (dname == NULL) {
+			PWRAP_LOG(PWRAP_LOG_ERROR,
+				  "No directory component in %s", pam_path);
+			exit(1);
+		}
+
 		snprintf(pam_path,
 			 sizeof(pam_path),
-			 "/usr/lib%s/%s",
-			 suffix,
+			 "%s/%s",
+			 dname,
 			 pam_library);
 	}
+	PWRAP_LOG(PWRAP_LOG_TRACE, "Reconstructed PAM path: %s", pam_path);
 
 	PWRAP_LOG(PWRAP_LOG_DEBUG, "Copy %s to %s", pam_path, pwrap.pam_library);
 	rc = p_copy(pam_path, pwrap.pam_library, pwrap.config_dir, 0644);
