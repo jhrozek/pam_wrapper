@@ -12,6 +12,8 @@
 #include <unistd.h>
 #include <limits.h>
 #include <syslog.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <security/pam_appl.h>
 #include <security/pam_ext.h>
 
@@ -160,6 +162,22 @@ static int teardown_simple(void **state)
 
 	free(test_ctx);
 	return 0;
+}
+
+static void test_env(void **state)
+{
+	const char *v;
+	struct stat sb;
+	int ret;
+
+	(void) state; /* unused */
+
+	v = getenv("PWRAP_TEST_CONF_DIR");
+	assert_non_null(v);
+
+	ret = stat(v, &sb);
+	assert_int_not_equal(ret, -1);
+	assert_true(S_ISDIR(sb.st_mode));
 }
 
 static void test_pam_start(void **state)
@@ -605,6 +623,7 @@ int main(void) {
 	int rc;
 
 	const struct CMUnitTest init_tests[] = {
+		cmocka_unit_test(test_env),
 		cmocka_unit_test_setup_teardown(test_pam_start,
 						setup_noconv,
 						teardown_simple),

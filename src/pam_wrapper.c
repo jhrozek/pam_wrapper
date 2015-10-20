@@ -792,7 +792,9 @@ static void pwrap_init(void)
 		exit(1);
 	}
 
-	PWRAP_LOG(PWRAP_LOG_DEBUG, "Succeccfully initialized pam_wrapper");
+	setenv("PWRAP_TEST_CONF_DIR", pwrap.config_dir, 1);
+
+	PWRAP_LOG(PWRAP_LOG_DEBUG, "Successfully initialized pam_wrapper");
 }
 
 bool pam_wrapper_enabled(void)
