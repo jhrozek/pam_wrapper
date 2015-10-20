@@ -45,25 +45,27 @@ install(
   ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
 )
 
-add_library(pam_matrix MODULE modules/pam_matrix.c)
-set_property(TARGET pam_matrix PROPERTY PREFIX "")
-
+set(PAM_MODULES pam_matrix pam_get_items pam_set_items)
 set(PAM_LIBRARIES
     pam
     pam_misc)
 
-target_link_libraries(pam_matrix
-			${PAM_LIBRARIES})
-
 set(PWRAP_PRIVATE_LIBRARIES
 	${LIB_INSTALL_DIR}/pam_wrapper)
 
-install(
-  TARGETS
-    pam_matrix
-  LIBRARY DESTINATION ${PWRAP_PRIVATE_LIBRARIES}
-  ARCHIVE DESTINATION ${PWRAP_PRIVATE_LIBRARIES}
-)
+foreach(_PAM_MODULE ${PAM_MODULES})
+	add_library(${_PAM_MODULE} MODULE modules/${_PAM_MODULE}.c)
+	set_property(TARGET ${_PAM_MODULE} PROPERTY PREFIX "")
+
+	target_link_libraries(${_PAM_MODULE}
+				${PAM_LIBRARIES})
+
+	install(
+		TARGETS
+			${_PAM_MODULE}
+		LIBRARY DESTINATION ${PWRAP_PRIVATE_LIBRARIES}
+		ARCHIVE DESTINATION ${PWRAP_PRIVATE_LIBRARIES})
+endforeach()
 
 # This needs to be at the end
 if (POLICY CMP0026)

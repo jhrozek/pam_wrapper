@@ -15,6 +15,8 @@ set(PASSDB_PATH
 configure_file(passdb_ro ${PASSDB_PATH} @ONLY)
 configure_file(services/pwrap_pam_opt.in ${CMAKE_CURRENT_BINARY_DIR}/services/pwrap_pam_opt @ONLY)
 
+configure_file(services/pwrap_get_set.in ${CMAKE_CURRENT_BINARY_DIR}/services/pwrap_get_set @ONLY)
+
 if (OSX)
 	set(TEST_ENVIRONMENT DYLD_FORCE_FLAT_NAMESPACE=1;DYLD_INSERT_LIBRARIES=${PAM_WRAPPER_LOCATION};PAM_WRAPPER=1;PAM_WRAPPER_CONFDIR=${CMAKE_CURRENT_BINARY_DIR}/services})
 	add_definitions(-DOSX)

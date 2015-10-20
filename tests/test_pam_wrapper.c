@@ -619,6 +619,58 @@ static void test_pam_vsyslog(void **state)
 	pam_syslog(test_ctx->ph, LOG_INFO, "This is pam_wrapper test\n");
 }
 
+#define test_setenv(env) setenv(env, "test_"env, 1)
+
+#define test_getenv(envlist, key) do {				    \
+	const char *__v;					    \
+	__v = string_in_list(envlist, key);			    \
+	assert_non_null(__v);					    \
+	assert_string_equal(__v, "test_"key);			    \
+} while(0);
+
+static void test_get_set(void **state)
+{
+	const char *svc;
+	enum pamtest_err perr;
+	struct pamtest_case tests[] = {
+		{ PAMTEST_OPEN_SESSION, PAM_SUCCESS, 0, 0 },
+		{ PAMTEST_GETENVLIST, PAM_SUCCESS, 0, 0 },
+		{ PAMTEST_SENTINEL, 0, 0, 0 },
+	};
+
+	(void) state;	/* unused */
+
+	test_setenv("PAM_SERVICE");
+	test_setenv("PAM_USER");
+	test_setenv("PAM_USER_PROMPT");
+	test_setenv("PAM_TTY");
+	test_setenv("PAM_RUSER");
+	test_setenv("PAM_RHOST");
+	test_setenv("PAM_AUTHTOK");
+	test_setenv("PAM_OLDAUTHTOK");
+	test_setenv("PAM_XDISPLAY");
+	test_setenv("PAM_AUTHTOK_TYPE");
+
+	perr = pamtest("pwrap_get_set", "testuser", NULL, tests);
+	assert_int_equal(perr, PAMTEST_ERR_OK);
+
+	/* PAM_SERVICE is a special case, libpam lowercases it */
+	svc = string_in_list(tests[1].case_out.envlist, "PAM_SERVICE");
+	assert_non_null(svc);
+	assert_string_equal(svc, "test_pam_service");
+
+	//test_getenv(tests[1].case_out.envlist, "PAM_SERVICE");
+	test_getenv(tests[1].case_out.envlist, "PAM_USER");
+	test_getenv(tests[1].case_out.envlist, "PAM_USER_PROMPT");
+	test_getenv(tests[1].case_out.envlist, "PAM_TTY");
+	test_getenv(tests[1].case_out.envlist, "PAM_RUSER");
+	test_getenv(tests[1].case_out.envlist, "PAM_RHOST");
+	test_getenv(tests[1].case_out.envlist, "PAM_AUTHTOK");
+	test_getenv(tests[1].case_out.envlist, "PAM_OLDAUTHTOK");
+	test_getenv(tests[1].case_out.envlist, "PAM_XDISPLAY");
+	test_getenv(tests[1].case_out.envlist, "PAM_AUTHTOK_TYPE");
+}
+
 int main(void) {
 	int rc;
 
@@ -669,6 +721,7 @@ int main(void) {
 		cmocka_unit_test_setup_teardown(test_pam_vsyslog,
 						setup_noconv,
 						teardown),
+		cmocka_unit_test(test_get_set),
 	};
 
 	rc = cmocka_run_group_tests(init_tests, NULL, NULL);
