@@ -22,6 +22,9 @@
 #define PAM_EXAMPLE_AUTH_DATA	    "pam_matrix:auth_data"
 
 #define PASSDB_KEY	"passdb="
+#define VERBOSE_KEY	"verbose"
+
+#define PAM_MATRIX_FLG_VERBOSE (1 << 0)
 
 /* Walks over the key until a colon (:) is find
  */
@@ -60,6 +63,7 @@ struct pam_matrix_mod_items {
 
 struct pam_matrix_ctx {
 	const char *passdb;
+	int flags;
 
 	struct pam_lib_items pli;
 	struct pam_matrix_mod_items pmi;
@@ -243,6 +247,38 @@ static void pam_matrix_mod_items_free(struct pam_matrix_mod_items *pmi)
 	free(pmi->service);
 }
 
+static int pam_matrix_conv(pam_handle_t *pamh,
+			   const int msg_style,
+			   const char *msg)
+{
+	int ret;
+	const struct pam_conv *conv;
+	const struct pam_message *mesg[1];
+	struct pam_message *pam_msg;
+
+	ret = pam_get_item(pamh, PAM_CONV, (const void **) &conv);
+	if (ret != PAM_SUCCESS) {
+		return ret;
+	}
+
+	pam_msg = malloc(sizeof(struct pam_message));
+	if (pam_msg == NULL) {
+		return PAM_BUF_ERR;
+	}
+
+	pam_msg->msg_style = msg_style;
+	pam_msg->msg = msg;
+
+	mesg[0] = (const struct pam_message *) pam_msg;
+	ret = conv->conv(1, mesg, NULL, conv->appdata_ptr);
+	free(pam_msg);
+	if (ret != PAM_SUCCESS) {
+		return ret;
+	}
+
+	return PAM_SUCCESS;
+}
+
 /* Read user password. If both prompts are provided, then ask twice and
  * assert that both passwords match.
  *
@@ -344,6 +380,8 @@ static void eval_args(struct pam_matrix_ctx *pe_ctx,
 		      int argc,
 		      const char *argv[])
 {
+	pe_ctx->flags = 0;
+
 	for (; argc-- > 0; ++argv) {
 		if (strncmp(*argv, PASSDB_KEY, strlen(PASSDB_KEY)) == 0) {
 			if (*(*argv+strlen(PASSDB_KEY)) == '\0') {
@@ -351,6 +389,9 @@ static void eval_args(struct pam_matrix_ctx *pe_ctx,
 			} else {
 				pe_ctx->passdb = *argv+strlen(PASSDB_KEY);
 			}
+		} else if (strncmp(*argv, VERBOSE_KEY,
+				   strlen(VERBOSE_KEY)) == 0) {
+			pe_ctx->flags |= PAM_MATRIX_FLG_VERBOSE;
 		}
 	}
 }
@@ -409,7 +450,7 @@ static int _pam_matrix_auth(struct pam_matrix_ctx *pctx)
 	return rv;
 }
 
-static int pam_matrix_auth(struct pam_matrix_ctx *pctx)
+static int pam_matrix_auth(pam_handle_t *pamh, struct pam_matrix_ctx *pctx)
 {
 	int rv = PAM_AUTH_ERR;
 
@@ -417,6 +458,18 @@ static int pam_matrix_auth(struct pam_matrix_ctx *pctx)
 
 	wipe_authtok(pctx->pli.password);
 	wipe_authtok(pctx->pmi.password);
+
+	if (pctx->flags & PAM_MATRIX_FLG_VERBOSE) {
+		if (rv == PAM_SUCCESS) {
+			pam_matrix_conv(pamh,
+					PAM_TEXT_INFO,
+					"Authentication succeeded");
+		} else {
+			pam_matrix_conv(pamh,
+					PAM_ERROR_MSG,
+					"Authentication failed");
+		}
+	}
 
 	return rv;
 }
@@ -446,7 +499,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags,
 	}
 
 	/* Auth and get rid of the authtok */
-	rv = pam_matrix_auth(&pctx);
+	rv = pam_matrix_auth(pamh, &pctx);
 done:
 	pam_matrix_free(&pctx);
 	return rv;
@@ -640,7 +693,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 			goto done;
 		}
 
-		rv = pam_matrix_auth(&pctx);
+		rv = pam_matrix_auth(pamh, &pctx);
 	} else if (flags & PAM_UPDATE_AUTHTOK) {
 		rv = pam_get_item(pamh,
 				  PAM_OLDAUTHTOK,

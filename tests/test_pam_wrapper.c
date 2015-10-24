@@ -19,6 +19,10 @@
 
 #include "libpamtest.h"
 
+#ifndef ZERO_STRUCT
+#define ZERO_STRUCT(x) memset((char *)&(x), 0, sizeof(x))
+#endif
+
 struct pwrap_test_ctx {
 	struct pam_conv conv;
 	pam_handle_t *ph;
@@ -214,36 +218,44 @@ static int teardown(void **state)
 static void test_pam_authenticate(void **state)
 {
 	enum pamtest_err perr;
+	struct pamtest_conv_data conv_data;
 	const char *testuser_authtoks[] = {
 		"secret",
 		NULL,
 	};
 	struct pamtest_case tests[] = {
-		{ PAMTEST_AUTHENTICATE, PAM_SUCCESS, 0, 0 },
-		{ PAMTEST_SENTINEL, 0, 0, 0 },
+		{ PAMTEST_AUTHENTICATE, PAM_SUCCESS, PAMTEST_CASE_INIT },
+		{ PAMTEST_CASE_SENTINEL },
 	};
 
 	(void) state;	/* unused */
 
-	perr = pamtest("pwrap_pam", "testuser", testuser_authtoks, tests);
+	ZERO_STRUCT(conv_data);
+	conv_data.in_echo_off = testuser_authtoks;
+
+	perr = pamtest("pwrap_pam", "testuser", &conv_data, tests);
 	assert_int_equal(perr, PAMTEST_ERR_OK);
 }
 
 static void test_pam_authenticate_err(void **state)
 {
 	enum pamtest_err perr;
+	struct pamtest_conv_data conv_data;
 	const char *testuser_authtoks[] = {
 		"wrong_password",
 		NULL,
 	};
 	struct pamtest_case tests[] = {
-		{ PAMTEST_AUTHENTICATE, PAM_AUTH_ERR, 0, 0 },
-		{ PAMTEST_SENTINEL, 0, 0, 0 },
+		{ PAMTEST_AUTHENTICATE, PAM_AUTH_ERR, PAMTEST_CASE_INIT },
+		{ PAMTEST_CASE_SENTINEL },
 	};
 
 	(void) state;	/* unused */
 
-	perr = pamtest("pwrap_pam", "testuser", testuser_authtoks, tests);
+	ZERO_STRUCT(conv_data);
+	conv_data.in_echo_off = testuser_authtoks;
+
+	perr = pamtest("pwrap_pam", "testuser", &conv_data, tests);
 	assert_int_equal(perr, PAMTEST_ERR_OK);
 }
 
@@ -251,8 +263,8 @@ static void test_pam_acct(void **state)
 {
 	enum pamtest_err perr;
 	struct pamtest_case tests[] = {
-		{ PAMTEST_ACCOUNT, PAM_SUCCESS, 0, 0 },
-		{ PAMTEST_SENTINEL, 0, 0, 0 },
+		{ PAMTEST_ACCOUNT, PAM_SUCCESS, PAMTEST_CASE_INIT },
+		{ PAMTEST_CASE_SENTINEL },
 	};
 
 	(void) state;	/* unused */
@@ -265,8 +277,8 @@ static void test_pam_acct_err(void **state)
 {
 	enum pamtest_err perr;
 	struct pamtest_case tests[] = {
-		{ PAMTEST_ACCOUNT, PAM_PERM_DENIED, 0, 0 },
-		{ PAMTEST_SENTINEL, 0, 0, 0 },
+		{ PAMTEST_ACCOUNT, PAM_PERM_DENIED, PAMTEST_CASE_INIT },
+		{ PAMTEST_CASE_SENTINEL },
 	};
 
 	(void) state;	/* unused */
@@ -359,11 +371,11 @@ static void test_pam_session(void **state)
 	enum pamtest_err perr;
 	const char *v;
 	struct pamtest_case tests[] = {
-		{ PAMTEST_OPEN_SESSION, PAM_SUCCESS, 0, 0 },
-		{ PAMTEST_GETENVLIST, PAM_SUCCESS, 0, 0 },
-		{ PAMTEST_CLOSE_SESSION, PAM_SUCCESS, 0, 0 },
-		{ PAMTEST_GETENVLIST, PAM_SUCCESS, 0, 0 },
-		{ PAMTEST_SENTINEL, 0, 0, 0 },
+		{ PAMTEST_OPEN_SESSION, PAM_SUCCESS, PAMTEST_CASE_INIT },
+		{ PAMTEST_GETENVLIST, PAM_SUCCESS, PAMTEST_CASE_INIT },
+		{ PAMTEST_CLOSE_SESSION, PAM_SUCCESS, PAMTEST_CASE_INIT },
+		{ PAMTEST_GETENVLIST, PAM_SUCCESS, PAMTEST_CASE_INIT },
+		{ PAMTEST_CASE_SENTINEL },
 	};
 
 	(void) state;	/* unused */
@@ -386,6 +398,7 @@ static void test_pam_session(void **state)
 static void test_pam_chauthtok(void **state)
 {
 	enum pamtest_err perr;
+	struct pamtest_conv_data conv_data;
 	const char *testuser_new_authtoks[] = {
 		"secret",	    /* old password */
 		"new_secret",	    /* new password */
@@ -394,20 +407,24 @@ static void test_pam_chauthtok(void **state)
 		NULL,
 	};
 	struct pamtest_case tests[] = {
-		{ PAMTEST_CHAUTHTOK, PAM_SUCCESS, 0, 0 },
-		{ PAMTEST_AUTHENTICATE, PAM_SUCCESS, 0, 0 },
-		{ PAMTEST_SENTINEL, 0, 0, 0 },
+		{ PAMTEST_CHAUTHTOK, PAM_SUCCESS, PAMTEST_CASE_INIT },
+		{ PAMTEST_AUTHENTICATE, PAM_SUCCESS, PAMTEST_CASE_INIT },
+		{ PAMTEST_CASE_SENTINEL },
 	};
 
 	(void) state;	/* unused */
 
-	perr = pamtest("pwrap_pam", "testuser", testuser_new_authtoks, tests);
+	ZERO_STRUCT(conv_data);
+	conv_data.in_echo_off = testuser_new_authtoks;
+
+	perr = pamtest("pwrap_pam", "testuser", &conv_data, tests);
 	assert_int_equal(perr, PAMTEST_ERR_OK);
 }
 
 static void test_pam_chauthtok_prelim_failed(void **state)
 {
 	enum pamtest_err perr;
+	struct pamtest_conv_data conv_data;
 	const char *testuser_new_authtoks[] = {
 		"wrong_secret",	    /* old password */
 		"new_secret",	    /* new password */
@@ -415,13 +432,16 @@ static void test_pam_chauthtok_prelim_failed(void **state)
 		NULL,
 	};
 	struct pamtest_case tests[] = {
-		{ PAMTEST_CHAUTHTOK, PAM_AUTH_ERR, 0, 0 },
-		{ PAMTEST_SENTINEL, 0, 0, 0 },
+		{ PAMTEST_CHAUTHTOK, PAM_AUTH_ERR, PAMTEST_CASE_INIT },
+		{ PAMTEST_CASE_SENTINEL },
 	};
 
 	(void) state;	/* unused */
 
-	perr = pamtest("pwrap_pam", "testuser", testuser_new_authtoks, tests);
+	ZERO_STRUCT(conv_data);
+	conv_data.in_echo_off = testuser_new_authtoks;
+
+	perr = pamtest("pwrap_pam", "testuser", &conv_data, tests);
 	assert_int_equal(perr, PAMTEST_ERR_OK);
 }
 
@@ -430,10 +450,10 @@ static void test_pam_setcred(void **state)
 	enum pamtest_err perr;
 	const char *v;
 	struct pamtest_case tests[] = {
-		{ PAMTEST_GETENVLIST, PAM_SUCCESS, 0, 0 },
-		{ PAMTEST_SETCRED, PAM_SUCCESS, 0, 0 },
-		{ PAMTEST_GETENVLIST, PAM_SUCCESS, 0, 0 },
-		{ PAMTEST_SENTINEL, 0, 0, 0 },
+		{ PAMTEST_GETENVLIST, PAM_SUCCESS, PAMTEST_CASE_INIT },
+		{ PAMTEST_SETCRED, PAM_SUCCESS, PAMTEST_CASE_INIT },
+		{ PAMTEST_GETENVLIST, PAM_SUCCESS, PAMTEST_CASE_INIT },
+		{ PAMTEST_CASE_SENTINEL },
 	};
 
 	(void) state;	/* unused */
@@ -590,20 +610,62 @@ static void test_pam_strerror(void **state)
 static void test_pam_authenticate_db_opt(void **state)
 {
 	enum pamtest_err perr;
+	struct pamtest_conv_data conv_data;
+	char auth_info_msg[PAM_MAX_MSG_SIZE] = { '\0' };
+	char *info_arr[] = {
+		auth_info_msg,
+		NULL,
+	};
 	const char *testuser_authtoks[] = {
 		"secret_ro",
 		NULL,
 	};
 	struct pamtest_case tests[] = {
-		{ PAMTEST_AUTHENTICATE, PAM_SUCCESS, 0, 0 },
-		{ PAMTEST_SENTINEL, 0, 0, 0 },
+		{ PAMTEST_AUTHENTICATE, PAM_SUCCESS, PAMTEST_CASE_INIT },
+		{ PAMTEST_CASE_SENTINEL },
 	};
 
 	(void) state;	/* unused */
 
-	perr = pamtest("pwrap_pam_opt", "testuser_ro",
-		       testuser_authtoks, tests);
+	ZERO_STRUCT(conv_data);
+
+	conv_data.in_echo_off = testuser_authtoks;
+	conv_data.out_info = info_arr;
+
+	perr = pamtest("pwrap_pam_opt", "testuser_ro", &conv_data, tests);
 	assert_int_equal(perr, PAMTEST_ERR_OK);
+
+	assert_string_equal(auth_info_msg, "Authentication succeeded");
+}
+
+static void test_pam_authenticate_db_opt_err(void **state)
+{
+	enum pamtest_err perr;
+	struct pamtest_conv_data conv_data;
+	char auth_err_msg[PAM_MAX_MSG_SIZE] = { '\0' };
+	char *err_arr[] = {
+		auth_err_msg,
+		NULL,
+	};
+	const char *testuser_authtoks[] = {
+		"wrong_secret",
+		NULL,
+	};
+	struct pamtest_case tests[] = {
+		{ PAMTEST_AUTHENTICATE, PAM_AUTH_ERR, PAMTEST_CASE_INIT },
+		{ PAMTEST_CASE_SENTINEL },
+	};
+
+	(void) state;	/* unused */
+
+	ZERO_STRUCT(conv_data);
+	conv_data.in_echo_off = testuser_authtoks;
+	conv_data.out_err = err_arr;
+
+	perr = pamtest("pwrap_pam_opt", "testuser_ro", &conv_data, tests);
+	assert_int_equal(perr, PAMTEST_ERR_OK);
+
+	assert_string_equal(auth_err_msg, "Authentication failed");
 }
 
 static void test_pam_vsyslog(void **state)
@@ -633,9 +695,9 @@ static void test_get_set(void **state)
 	const char *svc;
 	enum pamtest_err perr;
 	struct pamtest_case tests[] = {
-		{ PAMTEST_OPEN_SESSION, PAM_SUCCESS, 0, 0 },
-		{ PAMTEST_GETENVLIST, PAM_SUCCESS, 0, 0 },
-		{ PAMTEST_SENTINEL, 0, 0, 0 },
+		{ PAMTEST_OPEN_SESSION, PAM_SUCCESS, PAMTEST_CASE_INIT },
+		{ PAMTEST_GETENVLIST, PAM_SUCCESS, PAMTEST_CASE_INIT },
+		{ PAMTEST_CASE_SENTINEL },
 	};
 
 	(void) state;	/* unused */
@@ -716,6 +778,9 @@ int main(void) {
 						setup_noconv,
 						teardown),
 		cmocka_unit_test_setup_teardown(test_pam_authenticate_db_opt,
+						setup_ctx_only,
+						teardown_simple),
+		cmocka_unit_test_setup_teardown(test_pam_authenticate_db_opt_err,
 						setup_ctx_only,
 						teardown_simple),
 		cmocka_unit_test_setup_teardown(test_pam_vsyslog,

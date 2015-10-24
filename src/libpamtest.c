@@ -22,6 +22,8 @@
 
 #include "libpamtest.h"
 
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
+
 static enum pamtest_err run_test_case(pam_handle_t *ph,
 				      struct pamtest_case *tc)
 {
@@ -144,10 +146,29 @@ const struct pamtest_case *pamtest_failed_case(struct pamtest_case *test_cases)
 	return NULL;
 }
 
-struct pamtest_conv_data {
-	const char **conv_input;
-	size_t conv_index;
+struct pamtest_conv_ctx {
+	struct pamtest_conv_data *data;
+
+	size_t echo_off_idx;
+	size_t echo_on_idx;
+	size_t err_idx;
+	size_t info_idx;
 };
+
+static int add_to_reply(struct pam_response *reply, const char *str)
+{
+	size_t len;
+
+	len = strlen(str) + 1;
+
+	reply->resp = calloc(len, sizeof(char));
+	if (reply->resp == NULL) {
+		return PAM_BUF_ERR;
+	}
+
+	memcpy(reply->resp, str, len);
+	return PAM_SUCCESS;
+}
 
 static int pamtest_simple_conv(int num_msg,
 			       const struct pam_message **msgm,
@@ -155,13 +176,13 @@ static int pamtest_simple_conv(int num_msg,
 			       void *appdata_ptr)
 {
 	int i;
+	int ret;
 	struct pam_response *reply;
-	const char *password;
-	size_t pwlen;
-	struct pamtest_conv_data *cdata = \
-				    (struct pamtest_conv_data *) appdata_ptr;
+	const char *prompt;
+	struct pamtest_conv_ctx *cctx = \
+				    (struct pamtest_conv_ctx *) appdata_ptr;
 
-	if (cdata == NULL) {
+	if (cctx == NULL) {
 		return PAM_CONV_ERR;
 	}
 
@@ -174,43 +195,78 @@ static int pamtest_simple_conv(int num_msg,
 	for (i=0; i < num_msg; i++) {
 		switch (msgm[i]->msg_style) {
 		case PAM_PROMPT_ECHO_OFF:
-			password = (const char *) \
-				   cdata->conv_input[cdata->conv_index];
-			if (password == NULL) {
+			prompt = (const char *) \
+				   cctx->data->in_echo_off[cctx->echo_off_idx];
+			if (prompt == NULL) {
 				return PAM_CONV_ERR;
 			}
 
-			pwlen = strlen(password) + 1;
+			ret = add_to_reply(&reply[i], prompt);
+			if (ret != PAM_SUCCESS) {
+				/* FIXME - free data? */
+				return ret;
+			}
 
-			cdata->conv_index++;
-
-			reply[i].resp = calloc(pwlen, sizeof(char));
-			if (reply[i].resp == NULL) {
-				free(reply);
+			cctx->echo_off_idx++;
+			break;
+		case PAM_PROMPT_ECHO_ON:
+			prompt = (const char *) \
+				   cctx->data->in_echo_on[cctx->echo_on_idx];
+			if (prompt == NULL) {
 				return PAM_CONV_ERR;
 			}
-			memcpy(reply[i].resp, password, pwlen);
+
+			ret = add_to_reply(&reply[i], prompt);
+			if (ret != PAM_SUCCESS) {
+				/* FIXME - free data? */
+				return ret;
+			}
+
+			cctx->echo_on_idx++;
+			break;
+		case PAM_ERROR_MSG:
+			if (cctx->data->out_err != NULL) {
+				memcpy(cctx->data->out_err[cctx->err_idx],
+				       msgm[i]->msg,
+				       MIN(strlen(msgm[i]->msg),
+					   PAM_MAX_MSG_SIZE));
+				cctx->err_idx++;
+			}
+			break;
+		case PAM_TEXT_INFO:
+			if (cctx->data->out_info != NULL) {
+				memcpy(cctx->data->out_info[cctx->info_idx],
+				       msgm[i]->msg,
+				       MIN(strlen(msgm[i]->msg),
+					   PAM_MAX_MSG_SIZE));
+				cctx->info_idx++;
+			}
 			break;
 		default:
 			continue;
 		}
 	}
 
-	*response = reply;
+	if (response) {
+		*response = reply;
+	}
 	return PAM_SUCCESS;
 }
 
 enum pamtest_err pamtest(const char *service,
 			 const char *user,
-			 void *conv_userdata,
+			 struct pamtest_conv_data *conv_data,
 			 struct pamtest_case *test_cases)
 {
-	struct pamtest_conv_data cdata;
+	struct pamtest_conv_ctx cctx;
 
-	cdata.conv_input = conv_userdata;
-	cdata.conv_index = 0;
+	cctx.data = conv_data;
+	cctx.echo_on_idx = 0;
+	cctx.echo_off_idx = 0;
+	cctx.err_idx = 0;
+	cctx.info_idx = 0;
 
 	return pamtest_ex(service, user,
-			  pamtest_simple_conv, &cdata, 
+			  pamtest_simple_conv, &cctx, 
 			  test_cases);
 }
