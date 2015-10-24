@@ -60,6 +60,9 @@ struct pamtest_case {
 	} case_out;		/* depends on pam_operation, mostly unused */
 };
 
+#define PAMTEST_CASE_INIT 0, 0, { .envlist = NULL }
+#define PAMTEST_CASE_SENTINEL PAMTEST_SENTINEL, 0, PAMTEST_CASE_INIT
+
 enum pamtest_err {
 	PAMTEST_ERR_OK,		/* Testcases returns correspond with input */
 	PAMTEST_ERR_START,	/* pam_start() failed */
@@ -85,9 +88,17 @@ void pamtest_free_env(char **envlist);
 
 const struct pamtest_case *pamtest_failed_case(struct pamtest_case *test_cases);
 
+struct pamtest_conv_data {
+	const char **in_echo_off;
+	const char **in_echo_on;
+
+	char **out_err;
+	char **out_info;
+};
+
 enum pamtest_err pamtest(const char *service,
 			 const char *user,
-			 void *conv_userdata,
+			 struct pamtest_conv_data *conv_data,
 			 struct pamtest_case *test_cases);
 
 #endif /* __LIBPAMTEST_H_ */

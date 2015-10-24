@@ -1,1 +1,1 @@
-auth		required	@CMAKE_CURRENT_BINARY_DIR@/../src/pam_matrix.so	passdb=@CMAKE_CURRENT_BINARY_DIR@/passdb_ro
+auth		required	@CMAKE_CURRENT_BINARY_DIR@/../src/pam_matrix.so	passdb=@CMAKE_CURRENT_BINARY_DIR@/passdb_ro	verbose
