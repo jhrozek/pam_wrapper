@@ -695,12 +695,8 @@ static void test_pam_authenticate_db_opt_err(void **state)
 static void test_pam_vsyslog(void **state)
 {
 	struct pwrap_test_ctx *test_ctx;
-	int rv;
 
 	test_ctx = (struct pwrap_test_ctx *) *state;
-	rv = pam_start("matrix", "trinity",
-		       &test_ctx->conv, &test_ctx->ph);
-	assert_int_equal(rv, PAM_SUCCESS);
 
 	pam_syslog(test_ctx->ph, LOG_INFO, "This is pam_wrapper test\n");
 }
@@ -755,6 +751,8 @@ static void test_get_set(void **state)
 	test_getenv(tests[1].case_out.envlist, "PAM_OLDAUTHTOK");
 	test_getenv(tests[1].case_out.envlist, "PAM_XDISPLAY");
 	test_getenv(tests[1].case_out.envlist, "PAM_AUTHTOK_TYPE");
+
+	pamtest_free_env(tests[1].case_out.envlist);
 }
 
 static void test_libpamtest_keepopen(void **state)
@@ -818,7 +816,7 @@ int main(void) {
 	const struct CMUnitTest init_tests[] = {
 		cmocka_unit_test(test_env),
 		cmocka_unit_test_setup_teardown(test_pam_start,
-						setup_noconv,
+						setup_ctx_only,
 						teardown_simple),
 		cmocka_unit_test_setup_teardown(test_pam_authenticate,
 						setup_passdb,
