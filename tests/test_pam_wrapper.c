@@ -714,6 +714,7 @@ static void test_get_set(void **state)
 {
 	const char *svc;
 	enum pamtest_err perr;
+	const struct pamtest_case *failed_tc;
 	struct pamtest_case tests[] = {
 		{ PAMTEST_OPEN_SESSION, PAM_SUCCESS, PAMTEST_CASE_INIT },
 		{ PAMTEST_GETENVLIST, PAM_SUCCESS, PAMTEST_CASE_INIT },
@@ -740,6 +741,9 @@ static void test_get_set(void **state)
 	svc = string_in_list(tests[1].case_out.envlist, "PAM_SERVICE");
 	assert_non_null(svc);
 	assert_string_equal(svc, "test_pam_service");
+
+	failed_tc = pamtest_failed_case(tests);
+	assert_null(failed_tc);
 
 	//test_getenv(tests[1].case_out.envlist, "PAM_SERVICE");
 	test_getenv(tests[1].case_out.envlist, "PAM_USER");
@@ -810,6 +814,31 @@ static void test_libpamtest_get_failed_test(void **state)
 	assert_true(failed_tc == &tests[0]);
 }
 
+static void test_libpamtest_neg(void **state)
+{
+	enum pamtest_err perr;
+	struct pamtest_conv_data conv_data;
+	const char *trinity_authtoks[] = {
+		"secret",
+		NULL,
+	};
+	struct pamtest_case tests[] = {
+		{ PAMTEST_START, PAM_SUCCESS, PAMTEST_CASE_INIT },
+		{ PAMTEST_CASE_SENTINEL },
+	};
+
+	(void) state;	/* unused */
+
+	ZERO_STRUCT(conv_data);
+	conv_data.in_echo_off = trinity_authtoks;
+
+	perr = pamtest("matrix", "trinity", &conv_data, tests);
+	assert_int_equal(perr, PAMTEST_ERR_INTERNAL);
+
+	perr = pamtest("matrix", "trinity", &conv_data, NULL);
+	assert_int_equal(perr, PAMTEST_ERR_INTERNAL);
+}
+
 int main(void) {
 	int rc;
 
@@ -870,6 +899,9 @@ int main(void) {
 						setup_passdb,
 						teardown_passdb),
 		cmocka_unit_test_setup_teardown(test_libpamtest_get_failed_test,
+						setup_passdb,
+						teardown_passdb),
+		cmocka_unit_test_setup_teardown(test_libpamtest_neg,
 						setup_passdb,
 						teardown_passdb),
 		cmocka_unit_test(test_get_set),
