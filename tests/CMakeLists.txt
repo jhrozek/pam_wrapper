@@ -7,13 +7,13 @@ include_directories(
   ${CMAKE_SOURCE_DIR}/include
 )
 
-configure_file(services/pwrap_pam.in ${CMAKE_CURRENT_BINARY_DIR}/services/pwrap_pam @ONLY)
+configure_file(services/matrix.in ${CMAKE_CURRENT_BINARY_DIR}/services/matrix @ONLY)
 
 # Some tests use a passdb as argument for pam_matrix
 set(PASSDB_PATH
 	${CMAKE_CURRENT_BINARY_DIR}/passdb_ro)
 configure_file(passdb_ro ${PASSDB_PATH} @ONLY)
-configure_file(services/pwrap_pam_opt.in ${CMAKE_CURRENT_BINARY_DIR}/services/pwrap_pam_opt @ONLY)
+configure_file(services/matrix_opt.in ${CMAKE_CURRENT_BINARY_DIR}/services/matrix_opt @ONLY)
 
 configure_file(services/pwrap_get_set.in ${CMAKE_CURRENT_BINARY_DIR}/services/pwrap_get_set @ONLY)
 
