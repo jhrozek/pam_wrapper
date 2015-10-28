@@ -23,8 +23,10 @@
 
 #define PASSDB_KEY	"passdb="
 #define VERBOSE_KEY	"verbose"
+#define ECHO_KEY	"echo"
 
-#define PAM_MATRIX_FLG_VERBOSE (1 << 0)
+#define PAM_MATRIX_FLG_VERBOSE	(1 << 0)
+#define PAM_MATRIX_FLG_ECHO	(1 << 1)
 
 #define MAX_AUTHTOK_SIZE 1024
 
@@ -311,6 +313,7 @@ static int pam_matrix_conv(pam_handle_t *pamh,
  * authtok_item as well
  */
 static int pam_matrix_read_password(pam_handle_t *pamh,
+				     int flags,
 				     int authtok_item,
 				     const char *prompt1,
 				     const char *prompt2,
@@ -320,14 +323,19 @@ static int pam_matrix_read_password(pam_handle_t *pamh,
 	char *authtok1 = NULL;
 	char *authtok2 = NULL;
 	const void *item;
+	int read_flg = PAM_PROMPT_ECHO_OFF;
 
-	rv = pam_matrix_conv(pamh, PAM_PROMPT_ECHO_OFF, prompt1, &authtok1);
+	if (flags & PAM_MATRIX_FLG_ECHO) {
+		read_flg = PAM_PROMPT_ECHO_ON;
+	}
+
+	rv = pam_matrix_conv(pamh, read_flg, prompt1, &authtok1);
 	if (authtok1 == NULL) {
 		goto done;
 	}
 
 	if (rv == PAM_SUCCESS && prompt2 != NULL) {
-		rv = pam_matrix_conv(pamh, PAM_PROMPT_ECHO_OFF,
+		rv = pam_matrix_conv(pamh, read_flg,
 				     prompt2, &authtok2);
 		if (rv != PAM_SUCCESS) {
 			goto done;
@@ -417,6 +425,9 @@ static void eval_args(struct pam_matrix_ctx *pe_ctx,
 		} else if (strncmp(*argv, VERBOSE_KEY,
 				   strlen(VERBOSE_KEY)) == 0) {
 			pe_ctx->flags |= PAM_MATRIX_FLG_VERBOSE;
+		} else if (strncmp(*argv, ECHO_KEY,
+				   strlen(ECHO_KEY)) == 0) {
+			pe_ctx->flags |= PAM_MATRIX_FLG_ECHO;
 		}
 	}
 }
@@ -518,8 +529,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags,
 		goto done;
 	}
 
-	rv = pam_matrix_read_password(pamh, PAM_AUTHTOK, "Password: ", NULL,
-				       (const void **) &pctx.pli.password);
+	rv = pam_matrix_read_password(pamh, pctx.flags, PAM_AUTHTOK, "Password: ",
+				      NULL, (const void **) &pctx.pli.password);
 	if (rv != PAM_SUCCESS) {
 		rv = PAM_AUTHINFO_UNAVAIL;
 		goto done;
@@ -696,7 +707,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 
 	if (flags & PAM_PRELIM_CHECK) {
 		rv = pam_matrix_read_password(
-					pamh, PAM_OLDAUTHTOK,
+					pamh, pctx.flags, PAM_OLDAUTHTOK,
 					"Old password: ", NULL,
 					(const void **) &pctx.pli.password);
 		if (rv != PAM_SUCCESS) {
@@ -737,7 +748,9 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 			goto done;
 		}
 
-		rv = pam_matrix_read_password(pamh, PAM_AUTHTOK,
+		rv = pam_matrix_read_password(pamh,
+					pctx.flags,
+					PAM_AUTHTOK,
 					"New Password :",
 					"Verify New Password :",
 					(const void **) &pctx.pli.password);

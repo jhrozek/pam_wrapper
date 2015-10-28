@@ -629,7 +629,7 @@ static void test_pam_authenticate_db_opt(void **state)
 
 	ZERO_STRUCT(conv_data);
 
-	conv_data.in_echo_off = trinity_authtoks;
+	conv_data.in_echo_on = trinity_authtoks;
 	conv_data.out_info = info_arr;
 
 	perr = pamtest("matrix_opt", "trinity_ro", &conv_data, tests);
@@ -659,7 +659,7 @@ static void test_pam_authenticate_db_opt_err(void **state)
 	(void) state;	/* unused */
 
 	ZERO_STRUCT(conv_data);
-	conv_data.in_echo_off = trinity_authtoks;
+	conv_data.in_echo_on = trinity_authtoks;
 	conv_data.out_err = err_arr;
 
 	perr = pamtest("matrix_opt", "trinity_ro", &conv_data, tests);
