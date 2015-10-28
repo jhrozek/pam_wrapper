@@ -356,7 +356,7 @@ static int pam_matrix_read_password(pam_handle_t *pamh,
 
 		if (strcmp(authtok1, authtok2) != 0) {
 			pam_matrix_conv(pamh, PAM_ERROR_MSG,
-					"Authentication succeeded",
+					"Passwords do not match",
 					NULL);
 			rv = PAM_AUTHTOK_RECOVERY_ERR;
 			goto done;
