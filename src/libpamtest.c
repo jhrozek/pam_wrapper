@@ -186,10 +186,12 @@ static int pamtest_simple_conv(int num_msg,
 		return PAM_CONV_ERR;
 	}
 
-	reply = (struct pam_response *) calloc(num_msg,
-					       sizeof(struct pam_response));
-	if (reply == NULL) {
-		return PAM_CONV_ERR;
+	if (response) {
+		reply = (struct pam_response *) calloc(num_msg,
+						sizeof(struct pam_response));
+		if (reply == NULL) {
+			return PAM_CONV_ERR;
+		}
 	}
 
 	for (i=0; i < num_msg; i++) {
@@ -201,10 +203,12 @@ static int pamtest_simple_conv(int num_msg,
 				return PAM_CONV_ERR;
 			}
 
-			ret = add_to_reply(&reply[i], prompt);
-			if (ret != PAM_SUCCESS) {
-				/* FIXME - free data? */
-				return ret;
+			if (reply != NULL) {
+				ret = add_to_reply(&reply[i], prompt);
+				if (ret != PAM_SUCCESS) {
+					/* FIXME - free data? */
+					return ret;
+				}
 			}
 
 			cctx->echo_off_idx++;
@@ -216,10 +220,12 @@ static int pamtest_simple_conv(int num_msg,
 				return PAM_CONV_ERR;
 			}
 
-			ret = add_to_reply(&reply[i], prompt);
-			if (ret != PAM_SUCCESS) {
-				/* FIXME - free data? */
-				return ret;
+			if (reply != NULL) {
+				ret = add_to_reply(&reply[i], prompt);
+				if (ret != PAM_SUCCESS) {
+					/* FIXME - free data? */
+					return ret;
+				}
 			}
 
 			cctx->echo_on_idx++;

@@ -309,10 +309,10 @@ static void *pwrap_load_lib_handle(enum pwrap_lib lib)
 
 			handle = dlopen(libpam_path, flags);
 			if (handle != NULL) {
+				pwrap.libpam.handle = handle;
 				break;
-		}
+			}
 
-			pwrap.libpam.handle = handle;
 		}
 		break;
 	}
@@ -1010,53 +1010,53 @@ static int pwrap_pam_get_item(const pam_handle_t *pamh,
 		switch(item_type) {
 		case PAM_USER:
 			PWRAP_LOG(PWRAP_LOG_TRACE,
-				  "pwrap_set_item PAM_USER=%s",
-				  (char *)item);
+				  "pwrap_get_item PAM_USER=%s",
+				  (char *) *item);
 			break;
 		case PAM_SERVICE:
 			PWRAP_LOG(PWRAP_LOG_TRACE,
-				  "pwrap_set_item PAM_SERVICE=%s",
-				  (char *)item);
+				  "pwrap_get_item PAM_SERVICE=%s",
+				  (char *) *item);
 			break;
 		case PAM_USER_PROMPT:
 			PWRAP_LOG(PWRAP_LOG_TRACE,
-				  "pwrap_set_item PAM_USER_PROMPT=%s",
-				  (char *)item);
+				  "pwrap_get_item PAM_USER_PROMPT=%s",
+				  (char *) *item);
 			break;
 		case PAM_TTY:
 			PWRAP_LOG(PWRAP_LOG_TRACE,
-				  "pwrap_set_item PAM_TTY=%s",
-				  (char *)item);
+				  "pwrap_get_item PAM_TTY=%s",
+				  (char *) *item);
 			break;
 		case PAM_RUSER:
 			PWRAP_LOG(PWRAP_LOG_TRACE,
-				  "pwrap_set_item PAM_RUSER=%s",
-				  (char *)item);
+				  "pwrap_get_item PAM_RUSER=%s",
+				  (char *) *item);
 			break;
 		case PAM_RHOST:
 			PWRAP_LOG(PWRAP_LOG_TRACE,
-				  "pwrap_set_item PAM_RHOST=%s",
-				  (char *)item);
+				  "pwrap_get_item PAM_RHOST=%s",
+				  (char *) *item);
 			break;
 		case PAM_AUTHTOK:
 			PWRAP_LOG(PWRAP_LOG_TRACE,
-				  "pwrap_set_item PAM_AUTHTOK=%s",
-				  (char *)item);
+				  "pwrap_get_item PAM_AUTHTOK=%s",
+				  (char *) *item);
 			break;
 		case PAM_OLDAUTHTOK:
 			PWRAP_LOG(PWRAP_LOG_TRACE,
-				  "pwrap_set_item PAM_OLDAUTHTOK=%s",
-				  (char *)item);
+				  "pwrap_get_item PAM_OLDAUTHTOK=%s",
+				  (char *) *item);
 			break;
 		case PAM_CONV:
 			PWRAP_LOG(PWRAP_LOG_TRACE,
-				  "pwrap_set_item PAM_CONV=%p",
-				  (void *) item);
+				  "pwrap_get_item PAM_CONV=%p",
+				  (void *) *item);
 			break;
 		default:
 			PWRAP_LOG(PWRAP_LOG_TRACE,
-				  "pwrap_set_item item_type=%d item=%p",
-				  item_type, (void *) item);
+				  "pwrap_get_item item_type=%d item=%p",
+				  item_type, (void *) *item);
 			break;
 		}
 	} else {
@@ -1273,8 +1273,6 @@ static int p_rmdirs(const char *path) {
 	struct stat sb;
 	char *fname;
 
-	return 0;
-
 	if ((d = opendir(path)) != NULL) {
 		while(stat(path, &sb) == 0) {
 			/* if we can remove the directory we're done */
@@ -1343,8 +1341,15 @@ void pwrap_destructor(void)
 {
 	const char *env;
 
+	PWRAP_LOG(PWRAP_LOG_TRACE, "entering pwrap_destructor");
+
 	if (pwrap.libpam.handle != NULL) {
 		dlclose(pwrap.libpam.handle);
+	}
+
+	if (pwrap.pam_library != NULL) {
+		free(pwrap.pam_library);
+		pwrap.pam_library = NULL;
 	}
 
 	if (!pwrap.initialised) {
@@ -1357,5 +1362,10 @@ void pwrap_destructor(void)
 	env = getenv("PAM_WRAPPER_KEEP_DIR");
 	if (env == NULL || env[0] != '1') {
 		p_rmdirs(pwrap.config_dir);
+	}
+
+	if (pwrap.config_dir != NULL) {
+		free(pwrap.config_dir);
+		pwrap.config_dir = NULL;
 	}
 }
