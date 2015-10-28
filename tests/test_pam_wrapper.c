@@ -733,7 +733,7 @@ static void test_get_set(void **state)
 	test_getenv(tests[1].case_out.envlist, "PAM_AUTHTOK_TYPE");
 }
 
-static void test_libpam_keepopen(void **state)
+static void test_libpamtest_keepopen(void **state)
 {
 	int rv;
 	enum pamtest_err perr;
@@ -760,6 +760,32 @@ static void test_libpam_keepopen(void **state)
 
 	rv = pam_end(tests[1].case_out.ph, PAM_SUCCESS);
 	assert_int_equal(rv, PAM_SUCCESS);
+}
+
+static void test_libpamtest_get_failed_test(void **state)
+{
+	enum pamtest_err perr;
+	struct pamtest_conv_data conv_data;
+	const char *trinity_authtoks[] = {
+		"secret",
+		NULL,
+	};
+	struct pamtest_case tests[] = {
+		{ PAMTEST_AUTHENTICATE, PAM_AUTH_ERR, PAMTEST_CASE_INIT },
+		{ PAMTEST_CASE_SENTINEL },
+	};
+	const struct pamtest_case *failed_tc;
+
+	(void) state;	/* unused */
+
+	ZERO_STRUCT(conv_data);
+	conv_data.in_echo_off = trinity_authtoks;
+
+	perr = pamtest("matrix", "trinity", &conv_data, tests);
+	assert_int_not_equal(perr, PAMTEST_ERR_OK);
+
+	failed_tc = pamtest_failed_case(tests);
+	assert_true(failed_tc == &tests[0]);
 }
 
 int main(void) {
@@ -815,7 +841,10 @@ int main(void) {
 		cmocka_unit_test_setup_teardown(test_pam_vsyslog,
 						setup_noconv,
 						teardown),
-		cmocka_unit_test_setup_teardown(test_libpam_keepopen,
+		cmocka_unit_test_setup_teardown(test_libpamtest_keepopen,
+						setup_passdb,
+						teardown_passdb),
+		cmocka_unit_test_setup_teardown(test_libpamtest_get_failed_test,
 						setup_passdb,
 						teardown_passdb),
 		cmocka_unit_test(test_get_set),
