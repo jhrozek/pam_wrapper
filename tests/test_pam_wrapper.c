@@ -445,6 +445,30 @@ static void test_pam_chauthtok_prelim_failed(void **state)
 	assert_int_equal(perr, PAMTEST_ERR_OK);
 }
 
+static void test_pam_chauthtok_diff_passwords(void **state)
+{
+	enum pamtest_err perr;
+	struct pamtest_conv_data conv_data;
+	const char *trinity_new_authtoks[] = {
+		"wrong_secret",		    /* old password */
+		"new_secret",		    /* new password */
+		"different_new_secret",	    /* verify new password */
+		NULL,
+	};
+	struct pamtest_case tests[] = {
+		{ PAMTEST_CHAUTHTOK, PAM_AUTH_ERR, PAMTEST_CASE_INIT },
+		{ PAMTEST_CASE_SENTINEL },
+	};
+
+	(void) state;	/* unused */
+
+	ZERO_STRUCT(conv_data);
+	conv_data.in_echo_off = trinity_new_authtoks;
+
+	perr = pamtest("matrix", "trinity", &conv_data, tests);
+	assert_int_equal(perr, PAMTEST_ERR_OK);
+}
+
 static void test_pam_setcred(void **state)
 {
 	enum pamtest_err perr;
@@ -818,6 +842,9 @@ int main(void) {
 						setup_passdb,
 						teardown_passdb),
 		cmocka_unit_test_setup_teardown(test_pam_chauthtok_prelim_failed,
+						setup_passdb,
+						teardown_passdb),
+		cmocka_unit_test_setup_teardown(test_pam_chauthtok_diff_passwords,
 						setup_passdb,
 						teardown_passdb),
 		cmocka_unit_test_setup_teardown(test_pam_setcred,

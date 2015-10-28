@@ -50,7 +50,6 @@
 		while(*__tk != '\0') {	\
 			*__tk = '\0';	\
 		}			\
-		tok = NULL;		\
 	}				\
 } while(0);
 
@@ -259,7 +258,8 @@ static int pam_matrix_conv(pam_handle_t *pamh,
 	int ret;
 	const struct pam_conv *conv;
 	const struct pam_message *mesg[1];
-	struct pam_response *resp=NULL;
+	struct pam_response *resp = NULL;
+	struct pam_response **r = NULL;
 	struct pam_message *pam_msg;
 
 	ret = pam_get_item(pamh, PAM_CONV, (const void **) &conv);
@@ -275,10 +275,16 @@ static int pam_matrix_conv(pam_handle_t *pamh,
 	pam_msg->msg_style = msg_style;
 	pam_msg->msg = msg;
 
+	if (msg_style == PAM_PROMPT_ECHO_ON ||
+	    msg_style == PAM_PROMPT_ECHO_OFF) {
+		r = &resp;
+	}
+
 	mesg[0] = (const struct pam_message *) pam_msg;
-	ret = conv->conv(1, mesg, &resp, conv->appdata_ptr);
+	ret = conv->conv(1, mesg, r, conv->appdata_ptr);
 	free(pam_msg);
 	if (ret != PAM_SUCCESS) {
+		free(resp);
 		return ret;
 	}
 
@@ -292,12 +298,14 @@ static int pam_matrix_conv(pam_handle_t *pamh,
 		if (resp[0].resp == NULL) {
 			/* Empty password */
 			*answer = NULL;
+			free(resp);
 			return PAM_SUCCESS;
 		}
 
 		*answer = strndup(resp[0].resp, MAX_AUTHTOK_SIZE);
 		wipe_authtok(resp[0].resp);
 		free(resp[0].resp);
+		free(resp);
 		if (*answer == NULL) {
 			return PAM_BUF_ERR;
 		}
@@ -348,12 +356,14 @@ static int pam_matrix_read_password(pam_handle_t *pamh,
 
 		if (strcmp(authtok1, authtok2) != 0) {
 			pam_matrix_conv(pamh, PAM_ERROR_MSG,
-					"Authentication succeeded",
+					"Passwords do not match",
 					NULL);
 			rv = PAM_AUTHTOK_RECOVERY_ERR;
 			goto done;
 		}
 		wipe_authtok(authtok2);
+		free(authtok2);
+		authtok2 = NULL;
 	}
 
 	if (rv != PAM_SUCCESS) {
@@ -362,6 +372,8 @@ static int pam_matrix_read_password(pam_handle_t *pamh,
 
 	rv = pam_set_item(pamh, authtok_item, authtok1);
 	wipe_authtok(authtok1);
+	free(authtok1);
+	authtok1 = NULL;
 	if (rv != PAM_SUCCESS) {
 		goto done;
 	}
