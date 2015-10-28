@@ -26,6 +26,8 @@
 
 #define PAM_MATRIX_FLG_VERBOSE (1 << 0)
 
+#define MAX_AUTHTOK_SIZE 1024
+
 /* Walks over the key until a colon (:) is find
  */
 #define NEXT_KEY(buf, key) do {					\
@@ -249,11 +251,13 @@ static void pam_matrix_mod_items_free(struct pam_matrix_mod_items *pmi)
 
 static int pam_matrix_conv(pam_handle_t *pamh,
 			   const int msg_style,
-			   const char *msg)
+			   const char *msg,
+			   char **answer)
 {
 	int ret;
 	const struct pam_conv *conv;
 	const struct pam_message *mesg[1];
+	struct pam_response *resp=NULL;
 	struct pam_message *pam_msg;
 
 	ret = pam_get_item(pamh, PAM_CONV, (const void **) &conv);
@@ -270,10 +274,31 @@ static int pam_matrix_conv(pam_handle_t *pamh,
 	pam_msg->msg = msg;
 
 	mesg[0] = (const struct pam_message *) pam_msg;
-	ret = conv->conv(1, mesg, NULL, conv->appdata_ptr);
+	ret = conv->conv(1, mesg, &resp, conv->appdata_ptr);
 	free(pam_msg);
 	if (ret != PAM_SUCCESS) {
 		return ret;
+	}
+
+	if (msg_style == PAM_PROMPT_ECHO_OFF ||
+	    msg_style == PAM_PROMPT_ECHO_ON) {
+		if (resp == NULL) {
+			/* Response expected, but none find! */
+			return PAM_SYSTEM_ERR;
+		}
+
+		if (resp[0].resp == NULL) {
+			/* Empty password */
+			*answer = NULL;
+			return PAM_SUCCESS;
+		}
+
+		*answer = strndup(resp[0].resp, MAX_AUTHTOK_SIZE);
+		wipe_authtok(resp[0].resp);
+		free(resp[0].resp);
+		if (*answer == NULL) {
+			return PAM_BUF_ERR;
+		}
 	}
 
 	return PAM_SUCCESS;
@@ -296,15 +321,14 @@ static int pam_matrix_read_password(pam_handle_t *pamh,
 	char *authtok2 = NULL;
 	const void *item;
 
-	rv = pam_prompt(pamh, PAM_PROMPT_ECHO_OFF,
-			&authtok1, "%s", prompt1);
+	rv = pam_matrix_conv(pamh, PAM_PROMPT_ECHO_OFF, prompt1, &authtok1);
 	if (authtok1 == NULL) {
 		goto done;
 	}
 
 	if (rv == PAM_SUCCESS && prompt2 != NULL) {
-		rv = pam_prompt(pamh, PAM_PROMPT_ECHO_OFF,
-				&authtok2, "%s", prompt2);
+		rv = pam_matrix_conv(pamh, PAM_PROMPT_ECHO_OFF,
+				     prompt2, &authtok2);
 		if (rv != PAM_SUCCESS) {
 			goto done;
 		}
@@ -315,8 +339,9 @@ static int pam_matrix_read_password(pam_handle_t *pamh,
 		}
 
 		if (strcmp(authtok1, authtok2) != 0) {
-			pam_prompt(pamh, PAM_ERROR_MSG, NULL,
-				   "%s", "Passwords do not match");
+			pam_matrix_conv(pamh, PAM_ERROR_MSG,
+					"Authentication succeeded",
+					NULL);
 			rv = PAM_AUTHTOK_RECOVERY_ERR;
 			goto done;
 		}
@@ -463,11 +488,13 @@ static int pam_matrix_auth(pam_handle_t *pamh, struct pam_matrix_ctx *pctx)
 		if (rv == PAM_SUCCESS) {
 			pam_matrix_conv(pamh,
 					PAM_TEXT_INFO,
-					"Authentication succeeded");
+					"Authentication succeeded",
+					NULL);
 		} else {
 			pam_matrix_conv(pamh,
 					PAM_ERROR_MSG,
-					"Authentication failed");
+					"Authentication failed",
+					NULL);
 		}
 	}
 
