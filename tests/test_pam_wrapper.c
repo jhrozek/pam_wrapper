@@ -100,8 +100,8 @@ static int setup_passdb(void **state)
 	fp = fopen(db, "w");
 	assert_non_null(fp);
 
-	fprintf(fp, "testuser:secret:pwrap_pam\n");
-	fprintf(fp, "testuser2:secret:pwrap_wrong_svc");
+	fprintf(fp, "trinity:secret:matrix\n");
+	fprintf(fp, "neo:secret:pwrap_wrong_svc");
 
 	fflush(fp);
 	fclose(fp);
@@ -151,7 +151,7 @@ static int setup_noconv(void **state)
 	/* We'll get an error if the test module talks to us */
 	test_ctx->conv.appdata_ptr = NULL;
 
-	rv = pam_start("pwrap_pam", "testuser",
+	rv = pam_start("matrix", "trinity",
 		       &test_ctx->conv, &test_ctx->ph);
 	assert_int_equal(rv, PAM_SUCCESS);
 
@@ -193,7 +193,7 @@ static void test_pam_start(void **state)
 	test_ctx = (struct pwrap_test_ctx *) *state;
 	test_ctx->conv.appdata_ptr = (void *) "testpassword";
 
-	rv = pam_start("pwrap_pam", "testuser", &test_ctx->conv, &ph);
+	rv = pam_start("matrix", "trinity", &test_ctx->conv, &ph);
 	assert_int_equal(rv, PAM_SUCCESS);
 
 	rv = pam_end(ph, PAM_SUCCESS);
@@ -219,7 +219,7 @@ static void test_pam_authenticate(void **state)
 {
 	enum pamtest_err perr;
 	struct pamtest_conv_data conv_data;
-	const char *testuser_authtoks[] = {
+	const char *trinity_authtoks[] = {
 		"secret",
 		NULL,
 	};
@@ -231,9 +231,9 @@ static void test_pam_authenticate(void **state)
 	(void) state;	/* unused */
 
 	ZERO_STRUCT(conv_data);
-	conv_data.in_echo_off = testuser_authtoks;
+	conv_data.in_echo_off = trinity_authtoks;
 
-	perr = pamtest("pwrap_pam", "testuser", &conv_data, tests);
+	perr = pamtest("matrix", "trinity", &conv_data, tests);
 	assert_int_equal(perr, PAMTEST_ERR_OK);
 }
 
@@ -241,7 +241,7 @@ static void test_pam_authenticate_err(void **state)
 {
 	enum pamtest_err perr;
 	struct pamtest_conv_data conv_data;
-	const char *testuser_authtoks[] = {
+	const char *trinity_authtoks[] = {
 		"wrong_password",
 		NULL,
 	};
@@ -253,9 +253,9 @@ static void test_pam_authenticate_err(void **state)
 	(void) state;	/* unused */
 
 	ZERO_STRUCT(conv_data);
-	conv_data.in_echo_off = testuser_authtoks;
+	conv_data.in_echo_off = trinity_authtoks;
 
-	perr = pamtest("pwrap_pam", "testuser", &conv_data, tests);
+	perr = pamtest("matrix", "trinity", &conv_data, tests);
 	assert_int_equal(perr, PAMTEST_ERR_OK);
 }
 
@@ -269,7 +269,7 @@ static void test_pam_acct(void **state)
 
 	(void) state;	/* unused */
 
-	perr = pamtest("pwrap_pam", "testuser", NULL, tests);
+	perr = pamtest("matrix", "trinity", NULL, tests);
 	assert_int_equal(perr, PAMTEST_ERR_OK);
 }
 
@@ -283,7 +283,7 @@ static void test_pam_acct_err(void **state)
 
 	(void) state;	/* unused */
 
-	perr = pamtest("pwrap_pam", "testuser2", NULL, tests);
+	perr = pamtest("matrix", "neo", NULL, tests);
 	assert_int_equal(perr, PAMTEST_ERR_OK);
 }
 
@@ -380,12 +380,12 @@ static void test_pam_session(void **state)
 
 	(void) state;	/* unused */
 
-	perr = pamtest("pwrap_pam", "testuser", NULL, tests);
+	perr = pamtest("matrix", "trinity", NULL, tests);
 	assert_int_equal(perr, PAMTEST_ERR_OK);
 
 	v = string_in_list(tests[1].case_out.envlist, "HOMEDIR");
 	assert_non_null(v);
-	assert_string_equal(v, "/home/testuser");
+	assert_string_equal(v, "/home/trinity");
 
 	pamtest_free_env(tests[1].case_out.envlist);
 
@@ -399,7 +399,7 @@ static void test_pam_chauthtok(void **state)
 {
 	enum pamtest_err perr;
 	struct pamtest_conv_data conv_data;
-	const char *testuser_new_authtoks[] = {
+	const char *trinity_new_authtoks[] = {
 		"secret",	    /* old password */
 		"new_secret",	    /* new password */
 		"new_secret",	    /* verify new password */
@@ -415,9 +415,9 @@ static void test_pam_chauthtok(void **state)
 	(void) state;	/* unused */
 
 	ZERO_STRUCT(conv_data);
-	conv_data.in_echo_off = testuser_new_authtoks;
+	conv_data.in_echo_off = trinity_new_authtoks;
 
-	perr = pamtest("pwrap_pam", "testuser", &conv_data, tests);
+	perr = pamtest("matrix", "trinity", &conv_data, tests);
 	assert_int_equal(perr, PAMTEST_ERR_OK);
 }
 
@@ -425,7 +425,7 @@ static void test_pam_chauthtok_prelim_failed(void **state)
 {
 	enum pamtest_err perr;
 	struct pamtest_conv_data conv_data;
-	const char *testuser_new_authtoks[] = {
+	const char *trinity_new_authtoks[] = {
 		"wrong_secret",	    /* old password */
 		"new_secret",	    /* new password */
 		"new_secret",	    /* verify new password */
@@ -439,9 +439,9 @@ static void test_pam_chauthtok_prelim_failed(void **state)
 	(void) state;	/* unused */
 
 	ZERO_STRUCT(conv_data);
-	conv_data.in_echo_off = testuser_new_authtoks;
+	conv_data.in_echo_off = trinity_new_authtoks;
 
-	perr = pamtest("pwrap_pam", "testuser", &conv_data, tests);
+	perr = pamtest("matrix", "trinity", &conv_data, tests);
 	assert_int_equal(perr, PAMTEST_ERR_OK);
 }
 
@@ -458,7 +458,7 @@ static void test_pam_setcred(void **state)
 
 	(void) state;	/* unused */
 
-	perr = pamtest("pwrap_pam", "testuser", NULL, tests);
+	perr = pamtest("matrix", "trinity", NULL, tests);
 	assert_int_equal(perr, PAMTEST_ERR_OK);
 
 	/* environment is clean before setcred */
@@ -469,7 +469,7 @@ static void test_pam_setcred(void **state)
 	/* and has an item after setcred */
 	v = string_in_list(tests[2].case_out.envlist, "CRED");
 	assert_non_null(v);
-	assert_string_equal(v, "/tmp/testuser");
+	assert_string_equal(v, "/tmp/trinity");
 	pamtest_free_env(tests[2].case_out.envlist);
 }
 
@@ -483,11 +483,11 @@ static void test_pam_item_functions(void **state)
 
 	rv = pam_get_item(test_ctx->ph, PAM_USER, (const void **) &item);
 	assert_int_equal(rv, PAM_SUCCESS);
-	assert_string_equal(item, "testuser");
+	assert_string_equal(item, "trinity");
 
 	rv = pam_set_item(test_ctx->ph, PAM_USER_PROMPT, "test_login");
 	assert_int_equal(rv, PAM_SUCCESS);
-	assert_string_equal(item, "testuser");
+	assert_string_equal(item, "trinity");
 
 	rv = pam_get_item(test_ctx->ph, PAM_USER_PROMPT, (const void **) &item);
 	assert_int_equal(rv, PAM_SUCCESS);
@@ -573,7 +573,7 @@ static void test_pam_prompt(void **state)
 	test_ctx->conv.conv = pwrap_echo_conv;
 	test_ctx->conv.appdata_ptr = resp_array;
 
-	rv = pam_start("pwrap_pam", "testuser",
+	rv = pam_start("matrix", "trinity",
 		       &test_ctx->conv, &test_ctx->ph);
 	assert_int_equal(rv, PAM_SUCCESS);
 
@@ -616,7 +616,7 @@ static void test_pam_authenticate_db_opt(void **state)
 		auth_info_msg,
 		NULL,
 	};
-	const char *testuser_authtoks[] = {
+	const char *trinity_authtoks[] = {
 		"secret_ro",
 		NULL,
 	};
@@ -629,10 +629,10 @@ static void test_pam_authenticate_db_opt(void **state)
 
 	ZERO_STRUCT(conv_data);
 
-	conv_data.in_echo_off = testuser_authtoks;
+	conv_data.in_echo_off = trinity_authtoks;
 	conv_data.out_info = info_arr;
 
-	perr = pamtest("pwrap_pam_opt", "testuser_ro", &conv_data, tests);
+	perr = pamtest("matrix_opt", "trinity_ro", &conv_data, tests);
 	assert_int_equal(perr, PAMTEST_ERR_OK);
 
 	assert_string_equal(auth_info_msg, "Authentication succeeded");
@@ -647,7 +647,7 @@ static void test_pam_authenticate_db_opt_err(void **state)
 		auth_err_msg,
 		NULL,
 	};
-	const char *testuser_authtoks[] = {
+	const char *trinity_authtoks[] = {
 		"wrong_secret",
 		NULL,
 	};
@@ -659,10 +659,10 @@ static void test_pam_authenticate_db_opt_err(void **state)
 	(void) state;	/* unused */
 
 	ZERO_STRUCT(conv_data);
-	conv_data.in_echo_off = testuser_authtoks;
+	conv_data.in_echo_off = trinity_authtoks;
 	conv_data.out_err = err_arr;
 
-	perr = pamtest("pwrap_pam_opt", "testuser_ro", &conv_data, tests);
+	perr = pamtest("matrix_opt", "trinity_ro", &conv_data, tests);
 	assert_int_equal(perr, PAMTEST_ERR_OK);
 
 	assert_string_equal(auth_err_msg, "Authentication failed");
@@ -674,7 +674,7 @@ static void test_pam_vsyslog(void **state)
 	int rv;
 
 	test_ctx = (struct pwrap_test_ctx *) *state;
-	rv = pam_start("pwrap_pam", "testuser",
+	rv = pam_start("matrix", "trinity",
 		       &test_ctx->conv, &test_ctx->ph);
 	assert_int_equal(rv, PAM_SUCCESS);
 
@@ -713,7 +713,7 @@ static void test_get_set(void **state)
 	test_setenv("PAM_XDISPLAY");
 	test_setenv("PAM_AUTHTOK_TYPE");
 
-	perr = pamtest("pwrap_get_set", "testuser", NULL, tests);
+	perr = pamtest("pwrap_get_set", "trinity", NULL, tests);
 	assert_int_equal(perr, PAMTEST_ERR_OK);
 
 	/* PAM_SERVICE is a special case, libpam lowercases it */
