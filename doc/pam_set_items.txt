@@ -1,0 +1,44 @@
+pam_set_items(8)
+===============
+
+NAME
+----
+
+pam_set_items - A PAM test module to set module-specific PAM items
+
+SYNOPSIS
+--------
+pam_set_items.so
+
+DESCRIPTION
+-----------
+PAM modules store data in PAM _items_. These items are only accessible from
+module context, not application context as they might include private data
+(PAM_AUTHTOK normally contains the password). But when testing PAM modules,
+it's often nice to make sure a PAM module under test can retrieve data
+from the stack. The pam_set_items module makes this possible by reading
+environment variables and setting them as PAM items.
+
+OPTIONS
+-------
+None
+
+MODULE TYPES PROVIDED
+---------------------
+All module types (*account*, *auth*, *password* and *session*) are provided.
+
+EXAMPLE
+-------
+Consider an example that tests that pam_unix is able to read a provided password
+and doesn't query on its own. The test service file would contain:
+
+[source,bash]
+auth required        pam_set_items.so
+auth required        pam_unix.so
+
+Then the test would put the item to the test environment with:
+
+[source,c]
+setenv("PAM_AUTHTOK", "secret");
+
+Then run the PAM conversation.
