@@ -239,7 +239,7 @@ struct pwrap {
 	bool enabled;
 	bool initialised;
 	char *config_dir;
-	char *pam_library;
+	char *libpam_so;
 };
 
 static struct pwrap pwrap;
@@ -273,19 +273,11 @@ static void *pwrap_load_lib_handle(enum pwrap_lib lib)
 	case PWRAP_LIBPAM:
 		handle = pwrap.libpam.handle;
 		if (handle == NULL) {
-			char libpam_path[PATH_MAX];
-
-			snprintf(libpam_path,
-				 sizeof(libpam_path),
-				 "%s/%s",
-				 pwrap.config_dir, LIBPAM_NAME);
-
-			handle = dlopen(libpam_path, flags);
+			handle = dlopen(pwrap.libpam_so, flags);
 			if (handle != NULL) {
 				pwrap.libpam.handle = handle;
 				break;
 			}
-
 		}
 		break;
 	}
@@ -654,7 +646,7 @@ static void pwrap_init(void)
 	uint32_t i;
 	int rc;
 	char pam_library[128] = { 0 };
-	char pam_path[1024] = { 0 };
+	char libpam_path[1024] = { 0 };
 	ssize_t ret;
 
 	if (!pam_wrapper_enabled()) {
@@ -713,25 +705,38 @@ static void pwrap_init(void)
 			  tmp_config_dir, strerror(errno));
 	}
 
-	snprintf(pam_path,
-		 sizeof(pam_path),
-		 "%s/%s",
+	/* create lib subdirectory */
+	snprintf(libpam_path,
+		 sizeof(libpam_path),
+		 "%s/lib",
+		 pwrap.config_dir);
+
+	rc = mkdir(libpam_path, 0755);
+	if (rc != 0) {
+		PWRAP_LOG(PWRAP_LOG_ERROR,
+			  "Failed to create pam_wrapper config dir: %s - %s",
+			  tmp_config_dir, strerror(errno));
+	}
+
+	snprintf(libpam_path,
+		 sizeof(libpam_path),
+		 "%s/lib/%s",
 		 pwrap.config_dir,
 		 LIBPAM_NAME);
 
-	pwrap.pam_library = strdup(pam_path);
-	if (pwrap.pam_library == NULL) {
+	pwrap.libpam_so = strdup(libpam_path);
+	if (pwrap.libpam_so == NULL) {
 		PWRAP_LOG(PWRAP_LOG_ERROR, "No memory");
 		exit(1);
 	}
 
 	/* copy libpam.so.0 */
-	snprintf(pam_path, sizeof(pam_path), "%s", PAM_LIBRARY);
+	snprintf(libpam_path, sizeof(libpam_path), "%s", PAM_LIBRARY);
 	PWRAP_LOG(PWRAP_LOG_TRACE,
 		  "PAM path: %s",
-		  pam_path);
+		  libpam_path);
 
-	ret = readlink(pam_path, pam_library, sizeof(pam_library));
+	ret = readlink(libpam_path, pam_library, sizeof(pam_library));
 	PWRAP_LOG(PWRAP_LOG_TRACE,
 		  "PAM library: %s",
 		  pam_library);
@@ -741,33 +746,33 @@ static void pwrap_init(void)
 	}
 
 	if (pam_library[0] == '/') {
-		snprintf(pam_path,
-			 sizeof(pam_path),
+		snprintf(libpam_path,
+			 sizeof(libpam_path),
 			 "%s",
 			 pam_library);
 	} else {
-		char pam_path_cp[sizeof(pam_path)];
+		char libpam_path_cp[sizeof(libpam_path)];
 		char *dname;
 
-		strncpy(pam_path_cp, pam_path, sizeof(pam_path_cp));
+		strncpy(libpam_path_cp, libpam_path, sizeof(libpam_path_cp));
 
-		dname = dirname(pam_path_cp);
+		dname = dirname(libpam_path_cp);
 		if (dname == NULL) {
 			PWRAP_LOG(PWRAP_LOG_ERROR,
-				  "No directory component in %s", pam_path);
+				  "No directory component in %s", libpam_path);
 			exit(1);
 		}
 
-		snprintf(pam_path,
-			 sizeof(pam_path),
+		snprintf(libpam_path,
+			 sizeof(libpam_path),
 			 "%s/%s",
 			 dname,
 			 pam_library);
 	}
-	PWRAP_LOG(PWRAP_LOG_TRACE, "Reconstructed PAM path: %s", pam_path);
+	PWRAP_LOG(PWRAP_LOG_TRACE, "Reconstructed PAM path: %s", libpam_path);
 
-	PWRAP_LOG(PWRAP_LOG_DEBUG, "Copy %s to %s", pam_path, pwrap.pam_library);
-	rc = p_copy(pam_path, pwrap.pam_library, pwrap.config_dir, 0644);
+	PWRAP_LOG(PWRAP_LOG_DEBUG, "Copy %s to %s", libpam_path, pwrap.libpam_so);
+	rc = p_copy(libpam_path, pwrap.libpam_so, pwrap.config_dir, 0644);
 	if (rc != 0) {
 		PWRAP_LOG(PWRAP_LOG_ERROR,
 			  "Failed to copy %s - error: %s",
@@ -775,8 +780,6 @@ static void pwrap_init(void)
 			  strerror(errno));
 		exit(1);
 	}
-
-	/* modify libpam.so */
 
 	pwrap.initialised = true;
 
@@ -792,7 +795,7 @@ static void pwrap_init(void)
 		exit(1);
 	}
 
-	setenv("PWRAP_TEST_CONF_DIR", pwrap.config_dir, 1);
+	setenv("PAM_WRAPPER_SERVICE_DIR", pwrap.config_dir, 1);
 
 	PWRAP_LOG(PWRAP_LOG_DEBUG, "Successfully initialized pam_wrapper");
 }
@@ -1320,9 +1323,9 @@ void pwrap_destructor(void)
 		dlclose(pwrap.libpam.handle);
 	}
 
-	if (pwrap.pam_library != NULL) {
-		free(pwrap.pam_library);
-		pwrap.pam_library = NULL;
+	if (pwrap.libpam_so != NULL) {
+		free(pwrap.libpam_so);
+		pwrap.libpam_so = NULL;
 	}
 
 	if (!pwrap.initialised) {

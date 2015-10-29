@@ -1,0 +1,46 @@
+pam_get_items(8)
+===============
+:revdate: 2015-11-04
+
+NAME
+----
+
+pam_get_items - A PAM test module to retrieve module-specific PAM items
+
+SYNOPSIS
+--------
+pam_get_items.so
+
+DESCRIPTION
+-----------
+PAM modules store data in PAM _items_. These items are only accessible from
+module context, not application context as they might include private data
+(PAM_AUTHTOK normally contains the password). But when testing PAM modules,
+it's often nice to make sure a PAM module under test sets items for the next
+module the way it's supposed to. The pam_get_items module makes this possible
+by exporting all PAM items as environment variables using pam_putenv. The
+environment variable name is the same as the constant name of the PAM item.
+
+OPTIONS
+-------
+None
+
+MODULE TYPES PROVIDED
+---------------------
+All module types (*account*, *auth*, *password* and *session*) are provided.
+
+EXAMPLE
+-------
+Consider an example that tests that pam_unix puts the password it reads
+onto PAM stack. The test service file would contain:
+
+[source,bash]
+auth required        pam_unix.so
+auth required        pam_get_items.so
+
+Then the test would run the PAM conversation and afterwards call:
+
+[source,c]
+pam_getenv(pamh, "PAM_AUTHTOK");
+
+To retrieve the password.

@@ -1,0 +1,80 @@
+pam_matrix(8)
+===============
+:revdate: 2015-11-04
+
+NAME
+----
+
+pam_matrix - A PAM test module to retrieve module-specific PAM items
+
+SYNOPSIS
+--------
+pam_matrix.so [...]
+
+DESCRIPTION
+-----------
+Testing PAM application often requires to set up an authentication backend with
+as little effort as possible. The *pam_matrix* module allows to authenticate
+against a key-value text file, provided by an option or with an environment
+variable.
+
+IMPORTANT
+---------
+pam_matrix is a *test tool*. It should be considered completely insecure
+and never used outside test environments! As you'll see when reading
+description of the options and actions, many of them don't make any sense
+in the real world and were added just to make tests possible.
+
+PASSWORD DATABASE
+-----------------
+The pam_matrix module authenticates user against a plain-text CSV file. The
+format of the file is as follows:
+
+[source,bash]
+username:password:allowed_service
+
+Example: User bob allowed to authenticate with the service sshd
+
+[source,bash]
+bob:secret:sshd
+
+OPTIONS
+-------
+* *passdb=/path/to/file* - the patch to the password database. If the
+database is not provided with this module option, pam_matrix.so reads the
+PAM_MATRIX_PASSWD environment variable and tries to load the file from
+there. If that fails as well, PAM_AUTHINFO_UNAVAIL is returned.
+
+* *echo* - if this option is provided, pam_matrix.so will ask for password
+using PAM_PROMPT_ECHO_ON, that is, the password will be echoed back to user.
+This option was added to make it possible to test conversation functions
+better.
+
+* *verbose* - if this option is provided, pam_matrix.so will display a
+PAM_TEXT_INFO message when authentication succeeds and a PAM_ERROR_MSG
+when authentication fails. This option was added to make it possible to
+test conversation functions better.
+
+MODULE TYPES PROVIDED
+---------------------
+All module types (*account*, *auth*, *password* and *session*) are supported.
+
+The *auth* module searches for the user in the passdb file and compares the
+provided password with the one in the passdb file.
+
+The *password* module is able to update the password in the passdb file.
+
+The *access* module compares the service name the PAM conversation was invoked
+with the allowed service for the user as set in the passdb file.
+
+The *session* module sets the HOMEDIR PAM environment variable to "/home/%u"
+where %u stands for the user who opens the session. The variable is unset
+on session close.
+
+EXAMPLE
+-------
+[source,bash]
+auth        required    pam_matrix.so passdb=/tmp/passdb verbose
+account     required    pam_matrix.so passdb=/tmp/passdb verbose
+password    required    pam_matrix.so passdb=/tmp/passdb verbose
+session     required    pam_matrix.so passdb=/tmp/passdb verbose

@@ -176,7 +176,7 @@ static void test_env(void **state)
 
 	(void) state; /* unused */
 
-	v = getenv("PWRAP_TEST_CONF_DIR");
+	v = getenv("PAM_WRAPPER_SERVICE_DIR");
 	assert_non_null(v);
 
 	ret = stat(v, &sb);

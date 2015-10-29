@@ -1,3 +1,5 @@
 The manpage is written with asciidoc. To generate the manpage use:
 
 a2x --doctype manpage --format manpage doc/pam_wrapper.1.txt
+
+for m in doc/pam_*.[0-9].txt; do a2x --doctype manpage --format manpage $m; done
