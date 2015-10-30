@@ -610,6 +610,19 @@ static int pwrap_echo_conv(int num_msg,
 	return PAM_SUCCESS;
 }
 
+static int vprompt_test_fn(pam_handle_t *pamh, int style,
+			   char **response, const char *fmt, ...)
+{
+	va_list args;
+	int rv;
+
+	va_start(args, fmt);
+	rv = pam_vprompt(pamh, style, response, fmt, args);
+	va_end(args);
+
+	return rv;  
+}
+
 static void test_pam_prompt(void **state)
 {
 	struct pwrap_test_ctx *test_ctx;
@@ -633,7 +646,17 @@ static void test_pam_prompt(void **state)
 	assert_string_equal(response, "echo off: no echo");
 	free(response);
 
+	rv = vprompt_test_fn(test_ctx->ph, PAM_PROMPT_ECHO_OFF, &response, "no echo");
+	assert_int_equal(rv, PAM_SUCCESS);
+	assert_string_equal(response, "echo off: no echo");
+	free(response);
+
 	rv = pam_prompt(test_ctx->ph, PAM_PROMPT_ECHO_ON, &response, "echo");
+	assert_int_equal(rv, PAM_SUCCESS);
+	assert_string_equal(response, "echo on: echo");
+	free(response);
+
+	rv = vprompt_test_fn(test_ctx->ph, PAM_PROMPT_ECHO_ON, &response, "echo");
 	assert_int_equal(rv, PAM_SUCCESS);
 	assert_string_equal(response, "echo on: echo");
 	free(response);
@@ -719,6 +742,18 @@ static void test_pam_authenticate_db_opt_err(void **state)
 	assert_string_equal(auth_err_msg, "Authentication failed");
 }
 
+
+static void vsyslog_test_fn(const pam_handle_t *pamh,
+			    int priority,
+			    const char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+	pam_vsyslog(pamh, priority, fmt, args);
+	va_end(args);
+}
+
 static void test_pam_vsyslog(void **state)
 {
 	struct pwrap_test_ctx *test_ctx;
@@ -726,6 +761,7 @@ static void test_pam_vsyslog(void **state)
 	test_ctx = (struct pwrap_test_ctx *) *state;
 
 	pam_syslog(test_ctx->ph, LOG_INFO, "This is pam_wrapper test\n");
+	vsyslog_test_fn(test_ctx->ph, LOG_INFO, "This is pam_wrapper test\n");
 }
 
 #define test_setenv(env) setenv(env, "test_"env, 1)
