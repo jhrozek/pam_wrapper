@@ -24,9 +24,10 @@ else ()
 	set(TEST_ENVIRONMENT LD_PRELOAD=${PAM_WRAPPER_LOCATION};PAM_WRAPPER=1;PAM_WRAPPER_CONFDIR=${CMAKE_CURRENT_BINARY_DIR}/services)
 endif ()
 
-set(PAM_LIBRARIES
-    pam
-    pam_misc)
+set(PAM_LIBRARIES pam)
+if (HAVE_PAM_MISC)
+	list(APPEND PAM_LIBRARIES pam_misc)
+endif (HAVE_PAM_MISC)
 
 set(TEST_LIBRARIES
     pamtest

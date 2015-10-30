@@ -15,13 +15,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "config.h"
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
-#include <security/pam_modules.h>
+#ifdef HAVE_SECURITY_PAM_APPL_H
 #include <security/pam_appl.h>
+#endif
+#ifdef HAVE_SECURITY_PAM_MODULES_H
+#include <security/pam_modules.h>
+#endif
+
+#include "pwrap_compat.h"
 
 static const char *str_opt(const int opt)
 {
@@ -42,10 +49,14 @@ static const char *str_opt(const int opt)
 		return "PAM_AUTHTOK";
 	case PAM_OLDAUTHTOK:
 		return "PAM_OLDAUTHTOK";
+#ifdef PAM_XDISPLAY
 	case PAM_XDISPLAY:
 		return "PAM_XDISPLAY";
+#endif
+#ifdef PAM_AUTHTOK_TYPE
 	case PAM_AUTHTOK_TYPE:
 		return "PAM_AUTHTOK_TYPE";
+#endif
 	}
 
 	return NULL;	/* Unsupported */
@@ -105,8 +116,12 @@ static int pam_putitem(pam_handle_t *pamh)
 	putenv_item(pamh, PAM_RHOST);
 	putenv_item(pamh, PAM_AUTHTOK);
 	putenv_item(pamh, PAM_OLDAUTHTOK);
+#ifdef PAM_XDISPLAY
 	putenv_item(pamh, PAM_XDISPLAY);
+#endif
+#ifdef PAM_AUTHTOK_TYPE
 	putenv_item(pamh, PAM_AUTHTOK_TYPE);
+#endif
 
 	return PAM_SUCCESS;
 }

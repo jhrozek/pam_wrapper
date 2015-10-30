@@ -38,15 +38,21 @@ endfunction()
 check_include_file(sys/types.h HAVE_SYS_TYPES_H)
 check_include_file(unistd.h HAVE_UNISTD_H)
 check_include_file(security/pam_appl.h HAVE_SECURITY_PAM_APPL_H)
+check_include_file(security/pam_modules.h HAVE_SECURITY_PAM_MODULES_H)
+check_include_file(security/pam_ext.h HAVE_SECURITY_PAM_EXT_H)
 
 # FUNCTIONS
 check_function_exists(strncpy HAVE_STRNCPY)
 check_function_exists(vsnprintf HAVE_VSNPRINTF)
 check_function_exists(snprintf HAVE_SNPRINTF)
 
-# FUNCTIONS
+# LIBRARIES
 find_library(PAM_LIBRARY NAMES libpam.so.0 pam)
 set(PAM_LIBRARY ${PAM_LIBRARY})
+find_library(PAM_MISC_LIBRARY NAMES pam_misc)
+if (PAM_MISC_LIBRARY)
+	set(HAVE_PAM_MISC TRUE)
+endif()
 
 # OPTIONS
 
