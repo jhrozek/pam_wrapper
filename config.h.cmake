@@ -17,6 +17,8 @@
 #cmakedefine HAVE_SYS_TYPES_H 1
 #cmakedefine HAVE_UNISTD_H 1
 #cmakedefine HAVE_SECURITY_PAM_APPL_H 1
+#cmakedefine HAVE_SECURITY_PAM_MODULES_H 1
+#cmakedefine HAVE_SECURITY_PAM_EXT_H 1
 
 /*************************** FUNCTIONS ***************************/
 

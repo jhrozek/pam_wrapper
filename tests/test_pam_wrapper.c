@@ -1,3 +1,21 @@
+/*
+ * Copyright (c) 2015 Andreas Schneider <asn@samba.org>
+ * Copyright (c) 2015 Jakub Hrozek <jakub.hrozek@posteo.se>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include "config.h"
 
 #include <stdarg.h>
@@ -14,9 +32,18 @@
 #include <syslog.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <security/pam_appl.h>
-#include <security/pam_ext.h>
 
+#ifdef HAVE_SECURITY_PAM_APPL_H
+#include <security/pam_appl.h>
+#endif
+#ifdef HAVE_SECURITY_PAM_MODULES_H
+#include <security/pam_modules.h>
+#endif
+#ifdef HAVE_SECURITY_PAM_EXT_H
+#include <security/pam_ext.h>
+#endif
+
+#include "pwrap_compat.h"
 #include "libpamtest.h"
 
 #ifndef ZERO_STRUCT
@@ -731,8 +758,12 @@ static void test_get_set(void **state)
 	test_setenv("PAM_RHOST");
 	test_setenv("PAM_AUTHTOK");
 	test_setenv("PAM_OLDAUTHTOK");
+#ifdef PAM_XDISPLAY
 	test_setenv("PAM_XDISPLAY");
+#endif
+#ifdef PAM_AUTHTOK_TYPE
 	test_setenv("PAM_AUTHTOK_TYPE");
+#endif
 
 	perr = pamtest("pwrap_get_set", "trinity", NULL, tests);
 	assert_int_equal(perr, PAMTEST_ERR_OK);
@@ -753,8 +784,12 @@ static void test_get_set(void **state)
 	test_getenv(tests[1].case_out.envlist, "PAM_RHOST");
 	test_getenv(tests[1].case_out.envlist, "PAM_AUTHTOK");
 	test_getenv(tests[1].case_out.envlist, "PAM_OLDAUTHTOK");
+#ifdef PAM_XDISPLAY
 	test_getenv(tests[1].case_out.envlist, "PAM_XDISPLAY");
+#endif
+#ifdef PAM_AUTHTOK_TYPE
 	test_getenv(tests[1].case_out.envlist, "PAM_AUTHTOK_TYPE");
+#endif
 
 	pamtest_free_env(tests[1].case_out.envlist);
 }

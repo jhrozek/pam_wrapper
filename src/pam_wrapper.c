@@ -38,8 +38,14 @@
 #ifdef HAVE_SECURITY_PAM_APPL_H
 #include <security/pam_appl.h>
 #endif
+#ifdef HAVE_SECURITY_PAM_MODULES_H
 #include <security/pam_modules.h>
+#endif
+#ifdef HAVE_SECURITY_PAM_EXT_H
 #include <security/pam_ext.h>
+#endif
+
+#include "pwrap_compat.h"
 
 #ifdef HAVE_GCC_THREAD_LOCAL_STORAGE
 # define PWRAP_THREAD __thread

@@ -1,3 +1,23 @@
+/*
+ * Copyright (c) 2015 Andreas Schneider <asn@samba.org>
+ * Copyright (c) 2015 Jakub Hrozek <jakub.hrozek@posteo.se>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "config.h"
+
 #include <sys/param.h>
 
 #include <pwd.h>
@@ -9,9 +29,17 @@
 #include <errno.h>
 #include <time.h>
 
-#include <security/pam_modules.h>
+#ifdef HAVE_SECURITY_PAM_APPL_H
 #include <security/pam_appl.h>
+#endif
+#ifdef HAVE_SECURITY_PAM_MODULES_H
+#include <security/pam_modules.h>
+#endif
+#ifdef HAVE_SECURITY_PAM_EXT_H
 #include <security/pam_ext.h>
+#endif
+
+#include "pwrap_compat.h"
 
 #define HOME_VAR	"HOMEDIR"
 #define HOME_VAR_SZ	sizeof(HOME_VAR)-1

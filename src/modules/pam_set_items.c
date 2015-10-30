@@ -15,13 +15,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "config.h"
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
-#include <security/pam_modules.h>
+#ifdef HAVE_SECURITY_PAM_APPL_H
 #include <security/pam_appl.h>
+#endif
+#ifdef HAVE_SECURITY_PAM_MODULES_H
+#include <security/pam_modules.h>
+#endif
+
+#include "config.h"
 
 #define ITEM_FILE_KEY	"item_file="
 
@@ -34,8 +41,12 @@ static const char *envs[] = {
 	"PAM_RHOST",
 	"PAM_AUTHTOK",
 	"PAM_OLDAUTHTOK",
+#ifdef PAM_XDISPLAY
 	"PAM_XDISPLAY",
+#endif
+#ifdef PAM_AUTHTOK_TYPE
 	"PAM_AUTHTOK_TYPE",
+#endif
 	NULL
 };
 
@@ -48,8 +59,12 @@ static const int items[] = {
 	PAM_RHOST,
 	PAM_AUTHTOK,
 	PAM_OLDAUTHTOK,
+#ifdef PAM_XDISPLAY
 	PAM_XDISPLAY,
+#endif
+#ifdef PAM_AUTHTOK_TYPE
 	PAM_AUTHTOK_TYPE,
+#endif
 };
 
 static void pam_setitem_env(pam_handle_t *pamh)
