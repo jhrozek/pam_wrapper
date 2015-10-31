@@ -20,3 +20,20 @@
 #ifndef PAM_BAD_ITEM
 #define PAM_BAD_ITEM	PAM_SYSTEM_ERR
 #endif /* PAM_BAD_ITEM */
+
+/* BSD doesn't have FTW_* flags */
+#ifndef FTW_ACTIONRETVAL
+#define PWR_FTW_CONTINUE        0
+#define PWR_FTW_SKIP_SUBTREE    0
+#define PWR_FTW_STOP            1
+#define PWR_NFTW_FLAGS          0
+#else   /* Linux uses the flags.. */
+#define PWR_FTW_CONTINUE        FTW_CONTINUE
+#define PWR_FTW_SKIP_SUBTREE    FTW_SKIP_SUBTREE
+#define PWR_FTW_STOP            FTW_STOP
+#define PWR_NFTW_FLAGS          FTW_ACTIONRETVAL
+#endif
+
+#ifdef HAVE_OPENPAM
+#define PAMH_QUALIFIER  const
+#endif

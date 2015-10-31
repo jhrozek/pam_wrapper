@@ -19,6 +19,9 @@
 #cmakedefine HAVE_SECURITY_PAM_APPL_H 1
 #cmakedefine HAVE_SECURITY_PAM_MODULES_H 1
 #cmakedefine HAVE_SECURITY_PAM_EXT_H 1
+#cmakedefine HAVE_OPENPAM ${HAVE_OPENPAM}
+#cmakedefine HAVE_PAM_SYSLOG 1
+#cmakedefine HAVE_PAM_VSYSLOG 1
 
 /*************************** FUNCTIONS ***************************/
 

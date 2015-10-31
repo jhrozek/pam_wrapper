@@ -743,6 +743,7 @@ static void test_pam_authenticate_db_opt_err(void **state)
 }
 
 
+#ifdef HAVE_PAM_VSYSLOG
 static void vsyslog_test_fn(const pam_handle_t *pamh,
 			    int priority,
 			    const char *fmt, ...)
@@ -763,6 +764,7 @@ static void test_pam_vsyslog(void **state)
 	pam_syslog(test_ctx->ph, LOG_INFO, "This is pam_wrapper test\n");
 	vsyslog_test_fn(test_ctx->ph, LOG_INFO, "This is pam_wrapper test\n");
 }
+#endif
 
 #define test_setenv(env) setenv(env, "test_"env, 1)
 
@@ -963,9 +965,11 @@ int main(void) {
 		cmocka_unit_test_setup_teardown(test_pam_authenticate_db_opt_err,
 						setup_ctx_only,
 						teardown_simple),
+#ifdef HAVE_PAM_VSYSLOG
 		cmocka_unit_test_setup_teardown(test_pam_vsyslog,
 						setup_noconv,
 						teardown),
+#endif
 		cmocka_unit_test_setup_teardown(test_libpamtest_keepopen,
 						setup_passdb,
 						teardown_passdb),

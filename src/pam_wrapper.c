@@ -32,6 +32,7 @@
 #include <unistd.h>
 #include <dlfcn.h>
 #include <libgen.h>
+#include <limits.h>
 
 #include <ftw.h>
 
@@ -223,18 +224,21 @@ typedef int (*__libpam_pam_set_data)(pam_handle_t *pamh,
 						     void *data,
 						     int error_status));
 
-typedef int (*__libpam_pam_vprompt)(pam_handle_t *pamh,
+typedef int (*__libpam_pam_vprompt)(PAMH_QUALIFIER pam_handle_t *pamh,
 				    int style,
 				    char **response,
 				    const char *fmt,
 				    va_list args);
 
-typedef const char * (*__libpam_pam_strerror)(pam_handle_t *pamh, int errnum);
+typedef const char * (*__libpam_pam_strerror)(PAMH_QUALIFIER pam_handle_t *pamh,
+                                              int errnum);
 
+#ifdef HAVE_PAM_VSYSLOG
 typedef void (*__libpam_pam_vsyslog)(const pam_handle_t *pamh,
 				     int priority,
 				     const char *fmt,
 				     va_list args);
+#endif
 
 #define PWRAP_SYMBOL_ENTRY(i) \
 	union { \
@@ -260,7 +264,9 @@ struct pwrap_libpam_symbols {
 	PWRAP_SYMBOL_ENTRY(pam_set_data);
 	PWRAP_SYMBOL_ENTRY(pam_vprompt);
 	PWRAP_SYMBOL_ENTRY(pam_strerror);
+#ifdef HAVE_PAM_VSYSLOG
 	PWRAP_SYMBOL_ENTRY(pam_vsyslog);
+#endif
 };
 
 struct pwrap {
@@ -488,7 +494,7 @@ static int libpam_pam_set_data(pam_handle_t *pamh,
 							   cleanup);
 }
 
-static int libpam_pam_vprompt(pam_handle_t *pamh,
+static int libpam_pam_vprompt(PAMH_QUALIFIER pam_handle_t *pamh,
 			      int style,
 			      char **response,
 			      const char *fmt,
@@ -503,13 +509,14 @@ static int libpam_pam_vprompt(pam_handle_t *pamh,
 							  args);
 }
 
-static const char *libpam_pam_strerror(pam_handle_t *pamh, int errnum)
+static const char *libpam_pam_strerror(PAMH_QUALIFIER pam_handle_t *pamh, int errnum)
 {
 	pwrap_bind_symbol_libpam(pam_strerror);
 
 	return pwrap.libpam.symbols._libpam_pam_strerror.f(pamh, errnum);
 }
 
+#ifdef HAVE_PAM_VSYSLOG
 static void libpam_pam_vsyslog(const pam_handle_t *pamh,
 			       int priority,
 			       const char *fmt,
@@ -522,6 +529,7 @@ static void libpam_pam_vsyslog(const pam_handle_t *pamh,
 						   fmt,
 						   args);
 }
+#endif
 
 /*********************************************************
  * PWRAP INIT
@@ -640,27 +648,27 @@ static int copy_ftw(const char *fpath,
 	case FTW_DNR:
 		/* We want to copy the directories from this directory */
 		if (ftwbuf->level == 0) {
-			return FTW_CONTINUE;
+			return PWR_FTW_CONTINUE;
 		}
-		return FTW_SKIP_SUBTREE;
+		return PWR_FTW_SKIP_SUBTREE;
 	case FTW_F:
 		break;
 	default:
-		return FTW_CONTINUE;
+		return PWR_FTW_CONTINUE;
 	}
 
 	rc = snprintf(buf, BUFFER_SIZE, "%s/%s", pwrap.config_dir, fpath + ftwbuf->base);
 	if (rc >= BUFFER_SIZE) {
-		return FTW_STOP;
+		return PWR_FTW_STOP;
 	}
 
 	PWRAP_LOG(PWRAP_LOG_TRACE, "Copying %s", fpath);
 	rc = p_copy(fpath, buf, NULL, sb->st_mode);
 	if (rc != 0) {
-		return FTW_STOP;
+		return PWR_FTW_STOP;
 	}
 
-	return FTW_CONTINUE;
+	return PWR_FTW_CONTINUE;
 }
 
 static int copy_confdir(const char *src)
@@ -671,7 +679,7 @@ static int copy_confdir(const char *src)
 		  "Copy config files from %s to %s",
 		  src,
 		  pwrap.config_dir);
-	rc = nftw(src, copy_ftw, 1, FTW_ACTIONRETVAL);
+	rc = nftw(src, copy_ftw, 1, PWR_NFTW_FLAGS);
 	if (rc != 0) {
 		return -1;
 	}
@@ -1190,7 +1198,7 @@ int pam_set_data(pam_handle_t *pamh,
 	return pwrap_pam_set_data(pamh, module_data_name, data, cleanup);
 }
 
-static int pwrap_pam_vprompt(pam_handle_t *pamh,
+static int pwrap_pam_vprompt(PAMH_QUALIFIER pam_handle_t *pamh,
 			     int style,
 			     char **response,
 			     const char *fmt,
@@ -1200,7 +1208,7 @@ static int pwrap_pam_vprompt(pam_handle_t *pamh,
 	return libpam_pam_vprompt(pamh, style, response, fmt, args);
 }
 
-int pam_vprompt(pam_handle_t *pamh,
+int pam_vprompt(PAMH_QUALIFIER pam_handle_t *pamh,
 		int style,
 		char **response,
 		const char *fmt,
@@ -1209,7 +1217,7 @@ int pam_vprompt(pam_handle_t *pamh,
 	return pwrap_pam_vprompt(pamh, style, response, fmt, args);
 }
 
-int pam_prompt(pam_handle_t *pamh,
+int pam_prompt(PAMH_QUALIFIER pam_handle_t *pamh,
 	       int style,
 	       char **response,
 	       const char *fmt, ...)
@@ -1224,7 +1232,7 @@ int pam_prompt(pam_handle_t *pamh,
 	return rv;  
 }
 
-static const char *pwrap_pam_strerror(pam_handle_t *pamh, int errnum)
+static const char *pwrap_pam_strerror(PAMH_QUALIFIER pam_handle_t *pamh, int errnum)
 {
 	const char *str;
 	PWRAP_LOG(PWRAP_LOG_TRACE, "pam_strerror errnum=%d", errnum);
@@ -1236,11 +1244,12 @@ static const char *pwrap_pam_strerror(pam_handle_t *pamh, int errnum)
 	return str;
 }
 
-const char *pam_strerror(pam_handle_t *pamh, int errnum)
+const char *pam_strerror(PAMH_QUALIFIER pam_handle_t *pamh, int errnum)
 {
 	return pwrap_pam_strerror(pamh, errnum);
 }
 
+#ifdef HAVE_PAM_VSYSLOG
 static void pwrap_pam_vsyslog(const pam_handle_t *pamh,
 			      int priority,
 			      const char *fmt,
@@ -1257,7 +1266,9 @@ void pam_vsyslog(const pam_handle_t *pamh,
 {
 	pwrap_pam_vsyslog(pamh, priority, fmt, args);
 }
+#endif
 
+#ifdef HAVE_PAM_SYSLOG
 void pam_syslog(const pam_handle_t *pamh,
 	        int priority,
 	        const char *fmt, ...)
@@ -1268,6 +1279,7 @@ void pam_syslog(const pam_handle_t *pamh,
 	pwrap_pam_vsyslog(pamh, priority, fmt, args);
 	va_end(args);
 }
+#endif
 
 /****************************
  * DESTRUCTOR

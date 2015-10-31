@@ -30,6 +30,11 @@ set(pamtest_HEADERS
 )
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
+set(PAM_LIBRARIES pam)
+if (HAVE_PAM_MISC)
+	list(APPEND PAM_LIBRARIES pam_misc)
+endif (HAVE_PAM_MISC)
+
 add_library(pamtest SHARED
 	    ${pamtest_SOURCES}
 	    ${pamtest_HEADERS}
@@ -46,11 +51,6 @@ install(
 )
 
 set(PAM_MODULES pam_matrix pam_get_items pam_set_items)
-
-set(PAM_LIBRARIES pam)
-if (HAVE_PAM_MISC)
-	list(APPEND PAM_LIBRARIES pam_misc)
-endif (HAVE_PAM_MISC)
 
 set(PWRAP_PRIVATE_LIBRARIES
 	${LIB_INSTALL_DIR}/pam_wrapper)

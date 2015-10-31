@@ -29,6 +29,14 @@
 #include <errno.h>
 #include <time.h>
 
+#ifndef discard_const
+#define discard_const(ptr) ((void *)((uintptr_t)(ptr)))
+#endif
+
+#ifndef discard_const_p
+#define discard_const_p(type, ptr) ((type *)discard_const(ptr))
+#endif
+
 #ifdef HAVE_SECURITY_PAM_APPL_H
 #include <security/pam_appl.h>
 #endif
@@ -301,7 +309,7 @@ static int pam_matrix_conv(pam_handle_t *pamh,
 	}
 
 	pam_msg->msg_style = msg_style;
-	pam_msg->msg = msg;
+	pam_msg->msg = discard_const_p(char, msg);
 
 	if (msg_style == PAM_PROMPT_ECHO_ON ||
 	    msg_style == PAM_PROMPT_ECHO_OFF) {

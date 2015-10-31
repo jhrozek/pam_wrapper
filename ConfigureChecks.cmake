@@ -40,11 +40,14 @@ check_include_file(unistd.h HAVE_UNISTD_H)
 check_include_file(security/pam_appl.h HAVE_SECURITY_PAM_APPL_H)
 check_include_file(security/pam_modules.h HAVE_SECURITY_PAM_MODULES_H)
 check_include_file(security/pam_ext.h HAVE_SECURITY_PAM_EXT_H)
+check_include_file(security/openpam.h HAVE_SECURITY_OPENPAM_H)
 
 # FUNCTIONS
 check_function_exists(strncpy HAVE_STRNCPY)
 check_function_exists(vsnprintf HAVE_VSNPRINTF)
 check_function_exists(snprintf HAVE_SNPRINTF)
+check_function_exists(pam_syslog HAVE_PAM_SYSLOG)
+check_function_exists(pam_vsyslog HAVE_PAM_VSYSLOG)
 
 # LIBRARIES
 find_library(PAM_LIBRARY NAMES libpam.so.0 pam)
@@ -66,6 +69,11 @@ if (LINUX)
 
     set(CMAKE_REQUIRED_DEFINITIONS)
 endif (LINUX)
+
+# COMPAT
+if (HAVE_SECURITY_OPENPAM_H OR OSX)
+    set(HAVE_OPENPAM    1)
+endif ()
 
 check_c_source_compiles("
 #include <stdbool.h>
