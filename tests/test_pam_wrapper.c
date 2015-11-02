@@ -250,9 +250,8 @@ static void test_pam_authenticate(void **state)
 		"secret",
 		NULL,
 	};
-	struct pamtest_case tests[] = {
-		{ PAMTEST_AUTHENTICATE, PAM_SUCCESS, PAMTEST_CASE_INIT },
-		{ PAMTEST_CASE_SENTINEL },
+	struct pam_testcase tests[] = {
+		pam_test(PAMTEST_AUTHENTICATE, PAM_SUCCESS),
 	};
 
 	(void) state;	/* unused */
@@ -260,7 +259,7 @@ static void test_pam_authenticate(void **state)
 	ZERO_STRUCT(conv_data);
 	conv_data.in_echo_off = trinity_authtoks;
 
-	perr = pamtest("matrix", "trinity", &conv_data, tests);
+	perr = run_pamtest("matrix", "trinity", &conv_data, tests);
 	assert_int_equal(perr, PAMTEST_ERR_OK);
 }
 
@@ -272,9 +271,8 @@ static void test_pam_authenticate_err(void **state)
 		"wrong_password",
 		NULL,
 	};
-	struct pamtest_case tests[] = {
-		{ PAMTEST_AUTHENTICATE, PAM_AUTH_ERR, PAMTEST_CASE_INIT },
-		{ PAMTEST_CASE_SENTINEL },
+	struct pam_testcase tests[] = {
+		pam_test(PAMTEST_AUTHENTICATE, PAM_AUTH_ERR),
 	};
 
 	(void) state;	/* unused */
@@ -282,35 +280,33 @@ static void test_pam_authenticate_err(void **state)
 	ZERO_STRUCT(conv_data);
 	conv_data.in_echo_off = trinity_authtoks;
 
-	perr = pamtest("matrix", "trinity", &conv_data, tests);
+	perr = run_pamtest("matrix", "trinity", &conv_data, tests);
 	assert_int_equal(perr, PAMTEST_ERR_OK);
 }
 
 static void test_pam_acct(void **state)
 {
 	enum pamtest_err perr;
-	struct pamtest_case tests[] = {
-		{ PAMTEST_ACCOUNT, PAM_SUCCESS, PAMTEST_CASE_INIT },
-		{ PAMTEST_CASE_SENTINEL },
+	struct pam_testcase tests[] = {
+		pam_test(PAMTEST_ACCOUNT, PAM_SUCCESS),
 	};
 
 	(void) state;	/* unused */
 
-	perr = pamtest("matrix", "trinity", NULL, tests);
+	perr = run_pamtest("matrix", "trinity", NULL, tests);
 	assert_int_equal(perr, PAMTEST_ERR_OK);
 }
 
 static void test_pam_acct_err(void **state)
 {
 	enum pamtest_err perr;
-	struct pamtest_case tests[] = {
-		{ PAMTEST_ACCOUNT, PAM_PERM_DENIED, PAMTEST_CASE_INIT },
-		{ PAMTEST_CASE_SENTINEL },
+	struct pam_testcase tests[] = {
+		pam_test(PAMTEST_ACCOUNT, PAM_PERM_DENIED),
 	};
 
 	(void) state;	/* unused */
 
-	perr = pamtest("matrix", "neo", NULL, tests);
+	perr = run_pamtest("matrix", "neo", NULL, tests);
 	assert_int_equal(perr, PAMTEST_ERR_OK);
 }
 
@@ -397,17 +393,16 @@ static void test_pam_session(void **state)
 {
 	enum pamtest_err perr;
 	const char *v;
-	struct pamtest_case tests[] = {
-		{ PAMTEST_OPEN_SESSION, PAM_SUCCESS, PAMTEST_CASE_INIT },
-		{ PAMTEST_GETENVLIST, PAM_SUCCESS, PAMTEST_CASE_INIT },
-		{ PAMTEST_CLOSE_SESSION, PAM_SUCCESS, PAMTEST_CASE_INIT },
-		{ PAMTEST_GETENVLIST, PAM_SUCCESS, PAMTEST_CASE_INIT },
-		{ PAMTEST_CASE_SENTINEL },
+	struct pam_testcase tests[] = {
+		pam_test(PAMTEST_OPEN_SESSION, PAM_SUCCESS),
+		pam_test(PAMTEST_GETENVLIST, PAM_SUCCESS),
+		pam_test(PAMTEST_CLOSE_SESSION, PAM_SUCCESS),
+		pam_test(PAMTEST_GETENVLIST, PAM_SUCCESS),
 	};
 
 	(void) state;	/* unused */
 
-	perr = pamtest("matrix", "trinity", NULL, tests);
+	perr = run_pamtest("matrix", "trinity", NULL, tests);
 	assert_int_equal(perr, PAMTEST_ERR_OK);
 
 	v = string_in_list(tests[1].case_out.envlist, "HOMEDIR");
@@ -433,10 +428,9 @@ static void test_pam_chauthtok(void **state)
 		"new_secret",	    /* login with the new password */
 		NULL,
 	};
-	struct pamtest_case tests[] = {
-		{ PAMTEST_CHAUTHTOK, PAM_SUCCESS, PAMTEST_CASE_INIT },
-		{ PAMTEST_AUTHENTICATE, PAM_SUCCESS, PAMTEST_CASE_INIT },
-		{ PAMTEST_CASE_SENTINEL },
+	struct pam_testcase tests[] = {
+		pam_test(PAMTEST_CHAUTHTOK, PAM_SUCCESS),
+		pam_test(PAMTEST_AUTHENTICATE, PAM_SUCCESS),
 	};
 
 	(void) state;	/* unused */
@@ -444,7 +438,7 @@ static void test_pam_chauthtok(void **state)
 	ZERO_STRUCT(conv_data);
 	conv_data.in_echo_off = trinity_new_authtoks;
 
-	perr = pamtest("matrix", "trinity", &conv_data, tests);
+	perr = run_pamtest("matrix", "trinity", &conv_data, tests);
 	assert_int_equal(perr, PAMTEST_ERR_OK);
 }
 
@@ -458,9 +452,8 @@ static void test_pam_chauthtok_prelim_failed(void **state)
 		"new_secret",	    /* verify new password */
 		NULL,
 	};
-	struct pamtest_case tests[] = {
-		{ PAMTEST_CHAUTHTOK, PAM_AUTH_ERR, PAMTEST_CASE_INIT },
-		{ PAMTEST_CASE_SENTINEL },
+	struct pam_testcase tests[] = {
+		pam_test(PAMTEST_CHAUTHTOK, PAM_AUTH_ERR),
 	};
 
 	(void) state;	/* unused */
@@ -468,7 +461,7 @@ static void test_pam_chauthtok_prelim_failed(void **state)
 	ZERO_STRUCT(conv_data);
 	conv_data.in_echo_off = trinity_new_authtoks;
 
-	perr = pamtest("matrix", "trinity", &conv_data, tests);
+	perr = run_pamtest("matrix", "trinity", &conv_data, tests);
 	assert_int_equal(perr, PAMTEST_ERR_OK);
 }
 
@@ -482,9 +475,8 @@ static void test_pam_chauthtok_diff_passwords(void **state)
 		"different_new_secret",	    /* verify new password */
 		NULL,
 	};
-	struct pamtest_case tests[] = {
-		{ PAMTEST_CHAUTHTOK, PAM_AUTH_ERR, PAMTEST_CASE_INIT },
-		{ PAMTEST_CASE_SENTINEL },
+	struct pam_testcase tests[] = {
+		pam_test(PAMTEST_CHAUTHTOK, PAM_AUTH_ERR),
 	};
 
 	(void) state;	/* unused */
@@ -492,7 +484,7 @@ static void test_pam_chauthtok_diff_passwords(void **state)
 	ZERO_STRUCT(conv_data);
 	conv_data.in_echo_off = trinity_new_authtoks;
 
-	perr = pamtest("matrix", "trinity", &conv_data, tests);
+	perr = run_pamtest("matrix", "trinity", &conv_data, tests);
 	assert_int_equal(perr, PAMTEST_ERR_OK);
 }
 
@@ -500,16 +492,15 @@ static void test_pam_setcred(void **state)
 {
 	enum pamtest_err perr;
 	const char *v;
-	struct pamtest_case tests[] = {
-		{ PAMTEST_GETENVLIST, PAM_SUCCESS, PAMTEST_CASE_INIT },
-		{ PAMTEST_SETCRED, PAM_SUCCESS, PAMTEST_CASE_INIT },
-		{ PAMTEST_GETENVLIST, PAM_SUCCESS, PAMTEST_CASE_INIT },
-		{ PAMTEST_CASE_SENTINEL },
+	struct pam_testcase tests[] = {
+		pam_test(PAMTEST_GETENVLIST, PAM_SUCCESS),
+		pam_test(PAMTEST_SETCRED, PAM_SUCCESS),
+		pam_test(PAMTEST_GETENVLIST, PAM_SUCCESS),
 	};
 
 	(void) state;	/* unused */
 
-	perr = pamtest("matrix", "trinity", NULL, tests);
+	perr = run_pamtest("matrix", "trinity", NULL, tests);
 	assert_int_equal(perr, PAMTEST_ERR_OK);
 
 	/* environment is clean before setcred */
@@ -694,9 +685,8 @@ static void test_pam_authenticate_db_opt(void **state)
 		"secret_ro",
 		NULL,
 	};
-	struct pamtest_case tests[] = {
-		{ PAMTEST_AUTHENTICATE, PAM_SUCCESS, PAMTEST_CASE_INIT },
-		{ PAMTEST_CASE_SENTINEL },
+	struct pam_testcase tests[] = {
+		pam_test(PAMTEST_AUTHENTICATE, PAM_SUCCESS),
 	};
 
 	(void) state;	/* unused */
@@ -706,7 +696,7 @@ static void test_pam_authenticate_db_opt(void **state)
 	conv_data.in_echo_on = trinity_authtoks;
 	conv_data.out_info = info_arr;
 
-	perr = pamtest("matrix_opt", "trinity_ro", &conv_data, tests);
+	perr = run_pamtest("matrix_opt", "trinity_ro", &conv_data, tests);
 	assert_int_equal(perr, PAMTEST_ERR_OK);
 
 	assert_string_equal(auth_info_msg, "Authentication succeeded");
@@ -725,9 +715,8 @@ static void test_pam_authenticate_db_opt_err(void **state)
 		"wrong_secret",
 		NULL,
 	};
-	struct pamtest_case tests[] = {
-		{ PAMTEST_AUTHENTICATE, PAM_AUTH_ERR, PAMTEST_CASE_INIT },
-		{ PAMTEST_CASE_SENTINEL },
+	struct pam_testcase tests[] = {
+		pam_test(PAMTEST_AUTHENTICATE, PAM_AUTH_ERR),
 	};
 
 	(void) state;	/* unused */
@@ -736,7 +725,7 @@ static void test_pam_authenticate_db_opt_err(void **state)
 	conv_data.in_echo_on = trinity_authtoks;
 	conv_data.out_err = err_arr;
 
-	perr = pamtest("matrix_opt", "trinity_ro", &conv_data, tests);
+	perr = run_pamtest("matrix_opt", "trinity_ro", &conv_data, tests);
 	assert_int_equal(perr, PAMTEST_ERR_OK);
 
 	assert_string_equal(auth_err_msg, "Authentication failed");
@@ -777,11 +766,10 @@ static void test_get_set(void **state)
 {
 	const char *svc;
 	enum pamtest_err perr;
-	const struct pamtest_case *failed_tc;
-	struct pamtest_case tests[] = {
-		{ PAMTEST_OPEN_SESSION, PAM_SUCCESS, PAMTEST_CASE_INIT },
-		{ PAMTEST_GETENVLIST, PAM_SUCCESS, PAMTEST_CASE_INIT },
-		{ PAMTEST_CASE_SENTINEL },
+	const struct pam_testcase *failed_tc;
+	struct pam_testcase tests[] = {
+		pam_test(PAMTEST_OPEN_SESSION, PAM_SUCCESS),
+		pam_test(PAMTEST_GETENVLIST, PAM_SUCCESS),
 	};
 
 	(void) state;	/* unused */
@@ -801,7 +789,7 @@ static void test_get_set(void **state)
 	test_setenv("PAM_AUTHTOK_TYPE");
 #endif
 
-	perr = pamtest("pwrap_get_set", "trinity", NULL, tests);
+	perr = run_pamtest("pwrap_get_set", "trinity", NULL, tests);
 	assert_int_equal(perr, PAMTEST_ERR_OK);
 
 	/* PAM_SERVICE is a special case, libpam lowercases it */
@@ -839,10 +827,9 @@ static void test_libpamtest_keepopen(void **state)
 		"secret",
 		NULL,
 	};
-	struct pamtest_case tests[] = {
-		{ PAMTEST_AUTHENTICATE, PAM_SUCCESS, PAMTEST_CASE_INIT },
-		{ PAMTEST_KEEPHANDLE, PAM_SUCCESS, PAMTEST_CASE_INIT },
-		{ PAMTEST_CASE_SENTINEL },
+	struct pam_testcase tests[] = {
+		pam_test(PAMTEST_AUTHENTICATE, PAM_SUCCESS),
+		pam_test(PAMTEST_KEEPHANDLE, PAM_SUCCESS),
 	};
 
 	(void) state;	/* unused */
@@ -850,7 +837,7 @@ static void test_libpamtest_keepopen(void **state)
 	ZERO_STRUCT(conv_data);
 	conv_data.in_echo_off = trinity_authtoks;
 
-	perr = pamtest("matrix", "trinity", &conv_data, tests);
+	perr = run_pamtest("matrix", "trinity", &conv_data, tests);
 	assert_int_equal(perr, PAMTEST_ERR_OK);
 
 	assert_non_null(tests[1].case_out.ph);
@@ -867,47 +854,21 @@ static void test_libpamtest_get_failed_test(void **state)
 		"secret",
 		NULL,
 	};
-	struct pamtest_case tests[] = {
-		{ PAMTEST_AUTHENTICATE, PAM_AUTH_ERR, PAMTEST_CASE_INIT },
-		{ PAMTEST_CASE_SENTINEL },
+	struct pam_testcase tests[] = {
+		pam_test(PAMTEST_AUTHENTICATE, PAM_AUTH_ERR),
 	};
-	const struct pamtest_case *failed_tc;
+	const struct pam_testcase *failed_tc;
 
 	(void) state;	/* unused */
 
 	ZERO_STRUCT(conv_data);
 	conv_data.in_echo_off = trinity_authtoks;
 
-	perr = pamtest("matrix", "trinity", &conv_data, tests);
+	perr = run_pamtest("matrix", "trinity", &conv_data, tests);
 	assert_int_not_equal(perr, PAMTEST_ERR_OK);
 
 	failed_tc = pamtest_failed_case(tests);
-	assert_true(failed_tc == &tests[0]);
-}
-
-static void test_libpamtest_neg(void **state)
-{
-	enum pamtest_err perr;
-	struct pamtest_conv_data conv_data;
-	const char *trinity_authtoks[] = {
-		"secret",
-		NULL,
-	};
-	struct pamtest_case tests[] = {
-		{ PAMTEST_START, PAM_SUCCESS, PAMTEST_CASE_INIT },
-		{ PAMTEST_CASE_SENTINEL },
-	};
-
-	(void) state;	/* unused */
-
-	ZERO_STRUCT(conv_data);
-	conv_data.in_echo_off = trinity_authtoks;
-
-	perr = pamtest("matrix", "trinity", &conv_data, tests);
-	assert_int_equal(perr, PAMTEST_ERR_INTERNAL);
-
-	perr = pamtest("matrix", "trinity", &conv_data, NULL);
-	assert_int_equal(perr, PAMTEST_ERR_INTERNAL);
+	assert_ptr_equal(failed_tc, &tests[0]);
 }
 
 int main(void) {
@@ -970,9 +931,6 @@ int main(void) {
 						setup_passdb,
 						teardown_passdb),
 		cmocka_unit_test_setup_teardown(test_libpamtest_get_failed_test,
-						setup_passdb,
-						teardown_passdb),
-		cmocka_unit_test_setup_teardown(test_libpamtest_neg,
 						setup_passdb,
 						teardown_passdb),
 		cmocka_unit_test(test_get_set),

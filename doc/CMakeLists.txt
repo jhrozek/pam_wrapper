@@ -12,3 +12,9 @@ install(FILES
             pam_set_items.8
         DESTINATION
             ${MAN_INSTALL_DIR}/man8)
+
+#
+# Build the documentation
+#
+include(UseDoxygen OPTIONAL)
+

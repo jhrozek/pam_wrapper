@@ -25,7 +25,7 @@
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 
 static enum pamtest_err run_test_case(pam_handle_t *ph,
-				      struct pamtest_case *tc)
+				      struct pam_testcase *tc)
 {
 	switch (tc->pam_operation) {
 	case PAMTEST_AUTHENTICATE:
@@ -59,17 +59,18 @@ static enum pamtest_err run_test_case(pam_handle_t *ph,
 	return PAMTEST_ERR_OP;
 }
 
-enum pamtest_err pamtest_ex(const char *service,
-			    const char *user,
-			    pam_conv_fn conv_fn,
-			    void *conv_userdata,
-			    struct pamtest_case *test_cases)
+enum pamtest_err _pamtest_conv(const char *service,
+			       const char *user,
+			       pam_conv_fn conv_fn,
+			       void *conv_userdata,
+			       struct pam_testcase test_cases[],
+			       size_t num_test_cases)
 {
 	int rv;
 	pam_handle_t *ph;
 	struct pam_conv conv;
 	size_t tcindex;
-	struct pamtest_case *tc;
+	struct pam_testcase *tc;
 	bool call_pam_end = true;
 
 	conv.conv = conv_fn;
@@ -84,9 +85,7 @@ enum pamtest_err pamtest_ex(const char *service,
 		return PAMTEST_ERR_START;
 	}
 
-	for (tcindex = 0;
-	     test_cases[tcindex].pam_operation != PAMTEST_SENTINEL;
-	     tcindex++) {
+	for (tcindex = 0; tcindex < num_test_cases; tcindex++) {
 		tc = &test_cases[tcindex];
 
 		rv = run_test_case(ph, tc);
@@ -109,7 +108,7 @@ enum pamtest_err pamtest_ex(const char *service,
 		}
 	}
 
-	if (test_cases[tcindex].pam_operation != PAMTEST_SENTINEL) {
+	if (tcindex < num_test_cases) {
 		return PAMTEST_ERR_CASE;
 	}
 
@@ -128,14 +127,14 @@ void pamtest_free_env(char **envlist)
 	free(envlist);
 }
 
-const struct pamtest_case *pamtest_failed_case(struct pamtest_case *test_cases)
+const struct pam_testcase *
+_pamtest_failed_case(struct pam_testcase *test_cases,
+		     size_t num_test_cases)
 {
 	size_t tcindex;
 
-	for (tcindex = 0;
-	     test_cases[tcindex].pam_operation != PAMTEST_SENTINEL;
-	     tcindex++) {
-		const struct pamtest_case *tc = &test_cases[tcindex];
+	for (tcindex = 0; tcindex < num_test_cases; tcindex++) {
+		const struct pam_testcase *tc = &test_cases[tcindex];
 
 		if (tc->expected_rv != tc->op_rv) {
 			return tc;
@@ -259,20 +258,19 @@ static int pamtest_simple_conv(int num_msg,
 	return PAM_SUCCESS;
 }
 
-enum pamtest_err pamtest(const char *service,
-			 const char *user,
-			 struct pamtest_conv_data *conv_data,
-			 struct pamtest_case *test_cases)
+enum pamtest_err _pamtest(const char *service,
+			  const char *user,
+			  struct pamtest_conv_data *conv_data,
+			  struct pam_testcase test_cases[],
+			  size_t num_test_cases)
 {
-	struct pamtest_conv_ctx cctx;
+	struct pamtest_conv_ctx cctx = {
+		.data = conv_data,
+	};
 
-	cctx.data = conv_data;
-	cctx.echo_on_idx = 0;
-	cctx.echo_off_idx = 0;
-	cctx.err_idx = 0;
-	cctx.info_idx = 0;
-
-	return pamtest_ex(service, user,
-			  pamtest_simple_conv, &cctx, 
-			  test_cases);
+	return _pamtest_conv(service, user,
+			     pamtest_simple_conv,
+			     &cctx,
+			     test_cases,
+			     num_test_cases);
 }
