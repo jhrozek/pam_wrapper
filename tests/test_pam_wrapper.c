@@ -263,6 +263,26 @@ static void test_pam_authenticate(void **state)
 	assert_int_equal(perr, PAMTEST_ERR_OK);
 }
 
+static void test_pam_authenticate_null_password(void **state)
+{
+	enum pamtest_err perr;
+	struct pamtest_conv_data conv_data;
+	const char *empty_authtoks[] = {
+		NULL,
+	};
+	struct pam_testcase tests[] = {
+		pam_test(PAMTEST_AUTHENTICATE, PAM_CRED_ERR),
+	};
+
+	(void) state;	/* unused */
+
+	ZERO_STRUCT(conv_data);
+	conv_data.in_echo_off = empty_authtoks;
+
+	perr = run_pamtest("matrix", "trinity", &conv_data, tests);
+	assert_int_equal(perr, PAMTEST_ERR_OK);
+}
+
 static void test_pam_authenticate_err(void **state)
 {
 	enum pamtest_err perr;
@@ -880,6 +900,9 @@ int main(void) {
 						setup_ctx_only,
 						teardown_simple),
 		cmocka_unit_test_setup_teardown(test_pam_authenticate,
+						setup_passdb,
+						teardown_passdb),
+		cmocka_unit_test_setup_teardown(test_pam_authenticate_null_password,
 						setup_passdb,
 						teardown_passdb),
 		cmocka_unit_test_setup_teardown(test_pam_authenticate_err,

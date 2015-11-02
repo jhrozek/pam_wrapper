@@ -517,6 +517,11 @@ static int _pam_matrix_auth(struct pam_matrix_ctx *pctx)
 {
 	int rv = PAM_AUTH_ERR;
 
+	if (pctx->pli.password == NULL) {
+		/* NULL passwords are not allowed */
+		return PAM_CRED_ERR;
+	}
+
 	if (pctx->pli.password != NULL &&
 	    pctx->pmi.password != NULL &&
 	    strcmp(pctx->pli.password, pctx->pmi.password) == 0) {

@@ -174,7 +174,7 @@ static int pamtest_simple_conv(int num_msg,
 			       struct pam_response **response,
 			       void *appdata_ptr)
 {
-	int i;
+	int i, ri;
 	int ret;
 	struct pam_response *reply;
 	const char *prompt;
@@ -191,6 +191,7 @@ static int pamtest_simple_conv(int num_msg,
 		if (reply == NULL) {
 			return PAM_CONV_ERR;
 		}
+		ri = 0;
 	}
 
 	for (i=0; i < num_msg; i++) {
@@ -198,16 +199,18 @@ static int pamtest_simple_conv(int num_msg,
 		case PAM_PROMPT_ECHO_OFF:
 			prompt = (const char *) \
 				   cctx->data->in_echo_off[cctx->echo_off_idx];
-			if (prompt == NULL) {
-				return PAM_CONV_ERR;
-			}
 
 			if (reply != NULL) {
-				ret = add_to_reply(&reply[i], prompt);
-				if (ret != PAM_SUCCESS) {
-					/* FIXME - free data? */
-					return ret;
+				if (prompt != NULL) {
+					ret = add_to_reply(&reply[ri], prompt);
+					if (ret != PAM_SUCCESS) {
+						/* FIXME - free data? */
+						return ret;
+					}
+				} else {
+					reply[ri].resp = NULL;
 				}
+				ri++;
 			}
 
 			cctx->echo_off_idx++;
@@ -220,11 +223,16 @@ static int pamtest_simple_conv(int num_msg,
 			}
 
 			if (reply != NULL) {
-				ret = add_to_reply(&reply[i], prompt);
-				if (ret != PAM_SUCCESS) {
-					/* FIXME - free data? */
-					return ret;
+				if (prompt != NULL) {
+					ret = add_to_reply(&reply[ri], prompt);
+					if (ret != PAM_SUCCESS) {
+						/* FIXME - free data? */
+						return ret;
+					}
+				} else {
+					reply[ri].resp = NULL;
 				}
+				ri++;
 			}
 
 			cctx->echo_on_idx++;
