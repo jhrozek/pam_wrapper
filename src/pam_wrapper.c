@@ -871,7 +871,7 @@ static void pwrap_init(void)
 
 	pwrap.initialised = true;
 
-	env = getenv("PAM_WRAPPER_CONFDIR");
+	env = getenv("PAM_WRAPPER_SERVICE_DIR");
 	if (env == NULL) {
 		PWRAP_LOG(PWRAP_LOG_ERROR, "No config file");
 		p_rmdirs(pwrap.config_dir);
@@ -885,7 +885,7 @@ static void pwrap_init(void)
 		exit(1);
 	}
 
-	setenv("PAM_WRAPPER_SERVICE_DIR", pwrap.config_dir, 1);
+	setenv("PAM_WRAPPER_RUNTIME_DIR", pwrap.config_dir, 1);
 
 	PWRAP_LOG(PWRAP_LOG_DEBUG, "Successfully initialized pam_wrapper");
 }
@@ -904,7 +904,7 @@ bool pam_wrapper_enabled(void)
 	if (pwrap.enabled) {
 		pwrap.enabled = false;
 
-		env = getenv("PAM_WRAPPER_CONFDIR");
+		env = getenv("PAM_WRAPPER_SERVICE_DIR");
 		if (env != NULL && env[0] != '\0') {
 			pwrap.enabled = true;
 		}
@@ -922,7 +922,7 @@ void pwrap_constructor(void)
 	 * Here is safe place to call pwrap_init() and initialize data
 	 * for main process.
 	 */
-	// pwrap_init();
+	pwrap_init();
 }
 
 

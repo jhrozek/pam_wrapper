@@ -203,7 +203,7 @@ static void test_env(void **state)
 
 	(void) state; /* unused */
 
-	v = getenv("PAM_WRAPPER_SERVICE_DIR");
+	v = getenv("PAM_WRAPPER_RUNTIME_DIR");
 	assert_non_null(v);
 
 	ret = stat(v, &sb);

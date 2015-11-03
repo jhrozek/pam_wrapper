@@ -10,7 +10,7 @@ pam_wrapper - A preloadable wrapper to test PAM applications and PAM Modules
 SYNOPSIS
 --------
 
-LD_PRELOAD=libpam_wrapper.so PAM_WRAPPER=1 PAM_WRAPPER_CONFDIR=/path_to_config *./myapplication*
+LD_PRELOAD=libpam_wrapper.so PAM_WRAPPER=1 PAM_WRAPPER_SERVICE_DIR=/path_to_config *./myapplication*
 
 DESCRIPTION
 -----------
@@ -34,7 +34,7 @@ If you load the pam_wrapper and enable it with setting PAM_WRAPPER=1 all PAM
 calls will be wrapped so you are able to specify a directory with the service
 files pam_wrapper should be using.
 
-*PAM_WRAPPER_CONFDIR*::
+*PAM_WRAPPER_SERVICE_DIR*::
 
 The directory to read PAM service files from.
 
@@ -72,7 +72,7 @@ session         required        /usr/lib/pam_wrapper/pam_matrix.so passdb=/path/
 The name of the file should represent the service name used by your PAM
 application.
 
-LD_PRELOAD=./libpam_wrapper.so PAM_WRAPPER=1 PAM_WRAPPER_SERVICE_DIR=pam_services/ ./my_pam_app
+LD_PRELOAD=./libpam_wrapper.so PAM_WRAPPER=1 PAM_WRAPPER_SERVICE_DIR=./pam_services ./my_pam_app
 
 PAM_MATRIX
 ----------
