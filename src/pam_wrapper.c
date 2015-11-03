@@ -32,6 +32,7 @@
 #include <unistd.h>
 #include <dlfcn.h>
 #include <libgen.h>
+#include <signal.h>
 
 #include <ftw.h>
 
@@ -644,6 +645,57 @@ static int copy_confdir(const char *src)
 	return 0;
 }
 
+static int p_rmdirs(const char *path);
+
+static void pwrap_clean_stale_dirs(const char *dir)
+{
+	size_t len = strlen(dir);
+	char pidfile[len + 5];
+	struct stat sb;
+	ssize_t rc;
+
+	snprintf(pidfile,
+			sizeof(pidfile),
+			"%s/pid",
+			dir);
+
+	rc = lstat(pidfile, &sb);
+	if (rc == 0) {
+		char buf[8] = {0};
+		long int tmp;
+		pid_t pid;
+		int fd;
+
+		/* read the pidfile */
+		fd = open(pidfile, O_RDONLY);
+		if (fd < 0) {
+			return;
+		}
+
+		rc = read(fd, buf, sizeof(buf));
+		close(fd);
+		if (rc <= 0) {
+			return;
+		}
+
+		buf[sizeof(buf) - 1] = '\0';
+
+		tmp = strtol(buf, NULL, 10);
+		if (tmp == 0 || tmp > 0xFFFF || errno == ERANGE) {
+			return;
+		}
+
+		pid = (pid_t)(tmp & 0xFFFF);
+
+		rc = kill(pid, 0);
+		if (rc == -1) {
+			p_rmdirs(dir);
+		}
+	}
+
+	return;
+}
+
 static void pwrap_init(void)
 {
 	char tmp_config_dir[] = "/tmp/pam.X";
@@ -654,6 +706,8 @@ static void pwrap_init(void)
 	char pam_library[128] = { 0 };
 	char libpam_path[1024] = { 0 };
 	ssize_t ret;
+	FILE *pidfile;
+	char pidfile_path[1024] = { 0 };
 
 	if (!pam_wrapper_enabled()) {
 		return;
@@ -681,6 +735,7 @@ static void pwrap_init(void)
 			PWRAP_LOG(PWRAP_LOG_TRACE,
 				  "Check pam_wrapper dir %s already exists",
 				  tmp_config_dir);
+			pwrap_clean_stale_dirs(tmp_config_dir);
 			continue;
 		} else if (errno == ENOENT) {
 			break;
@@ -709,6 +764,26 @@ static void pwrap_init(void)
 		PWRAP_LOG(PWRAP_LOG_ERROR,
 			  "Failed to create pam_wrapper config dir: %s - %s",
 			  tmp_config_dir, strerror(errno));
+	}
+
+	/* Create file with the PID of the the process */
+	ret = snprintf(pidfile_path, sizeof(pidfile_path),
+		       "%s/pid", pwrap.config_dir);
+	if (ret < 0) {
+		p_rmdirs(pwrap.config_dir);
+		exit(1);
+	}
+
+	pidfile = fopen(pidfile_path, "w");
+	if (pidfile == NULL) {
+		p_rmdirs(pwrap.config_dir);
+		exit(1);
+	}
+
+	rc = fprintf(pidfile, "%d", getpid());
+	if (rc <= 0) {
+		p_rmdirs(pwrap.config_dir);
+		exit(1);
 	}
 
 	/* create lib subdirectory */
@@ -838,7 +913,7 @@ void pwrap_constructor(void)
 	 * Here is safe place to call pwrap_init() and initialize data
 	 * for main process.
 	 */
-	pwrap_init();
+	// pwrap_init();
 }
 
 
@@ -1203,6 +1278,9 @@ int pam_prompt(pam_handle_t *pamh,
 static const char *pwrap_pam_strerror(pam_handle_t *pamh, int errnum)
 {
 	const char *str;
+
+	pwrap_init();
+
 	PWRAP_LOG(PWRAP_LOG_TRACE, "pam_strerror errnum=%d", errnum);
 
 	str = libpam_pam_strerror(pamh, errnum);
