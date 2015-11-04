@@ -1,5 +1,4 @@
-auth		required	@CMAKE_CURRENT_BINARY_DIR@/../src/pam_matrix.so
-account		required	@CMAKE_CURRENT_BINARY_DIR@/../src/pam_matrix.so
-password	required	@CMAKE_CURRENT_BINARY_DIR@/../src/pam_matrix.so
-session		required	@CMAKE_CURRENT_BINARY_DIR@/../src/pam_matrix.so
-
+auth		required	@PAM_MATRIX_PATH@
+account		required	@PAM_MATRIX_PATH@
+password	required	@PAM_MATRIX_PATH@
+session		required	@PAM_MATRIX_PATH@

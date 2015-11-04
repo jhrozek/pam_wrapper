@@ -244,7 +244,7 @@ const struct pam_testcase *pamtest_failed_case(struct pam_testcase *test_cases);
  *
  * @param[in]  perr libpamtest error code
  *
- * @return String representation of the perr argument
+ * @return String representation of the perr argument. Never returns NULL.
  */
 const char *pamtest_strerror(enum pamtest_err perr);
 

@@ -3,7 +3,7 @@ compiler:
     - gcc
 before_install:
     - sudo apt-get update -qq
-    - sudo apt-get install build-essential gcc make cmake libpam0g-dev git
+    - sudo apt-get install build-essential gcc make cmake libpam0g-dev git python-dev
     - pip install --user cpp-coveralls
 script:
     - git clone https://git.cryptomilk.org/projects/cmocka.git/

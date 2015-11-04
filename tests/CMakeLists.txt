@@ -7,13 +7,18 @@ include_directories(
   ${CMAKE_SOURCE_DIR}/include
 )
 
+set(PAM_MATRIX_PATH "${CMAKE_BINARY_DIR}/src/modules/pam_matrix.so")
+
 configure_file(services/matrix.in ${CMAKE_CURRENT_BINARY_DIR}/services/matrix @ONLY)
 
 # Some tests use a passdb as argument for pam_matrix
-set(PASSDB_PATH
-	${CMAKE_CURRENT_BINARY_DIR}/passdb_ro)
-configure_file(passdb_ro ${PASSDB_PATH} @ONLY)
+set(PASSDB_RO_PATH ${CMAKE_CURRENT_BINARY_DIR}/passdb_ro)
+configure_file(passdb_ro ${PASSDB_RO_PATH} @ONLY)
 configure_file(services/matrix_opt.in ${CMAKE_CURRENT_BINARY_DIR}/services/matrix_opt @ONLY)
+
+set(PASSDB_PY_PATH ${CMAKE_CURRENT_BINARY_DIR}/passdb_py)
+configure_file(passdb_py ${PASSDB_PY_PATH} @ONLY)
+configure_file(services/matrix_py.in ${CMAKE_CURRENT_BINARY_DIR}/services/matrix_py @ONLY)
 
 configure_file(services/pwrap_get_set.in ${CMAKE_CURRENT_BINARY_DIR}/services/pwrap_get_set @ONLY)
 
@@ -39,5 +44,12 @@ add_cmocka_test(test_pam_wrapper test_pam_wrapper.c ${TEST_LIBRARIES})
 set_property(
     TEST
         test_pam_wrapper
+    PROPERTY
+        ENVIRONMENT ${TEST_ENVIRONMENT})
+
+add_test(pypamtest_test ${CMAKE_CURRENT_SOURCE_DIR}/pypamtest_test.py)
+set_property(
+    TEST
+        pypamtest_test
     PROPERTY
         ENVIRONMENT ${TEST_ENVIRONMENT})
