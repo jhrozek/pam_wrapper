@@ -1,0 +1,4 @@
+auth		required	@PAM_MATRIX_PATH@	passdb=@PASSDB_PY_PATH@
+account		required	@PAM_MATRIX_PATH@	passdb=@PASSDB_PY_PATH@
+session		required	@PAM_MATRIX_PATH@	passdb=@PASSDB_PY_PATH@
+password	required	@PAM_MATRIX_PATH@	passdb=@PASSDB_PY_PATH@

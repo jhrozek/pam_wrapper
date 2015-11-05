@@ -1,2 +1,2 @@
-session		required	@CMAKE_CURRENT_BINARY_DIR@/../src/pam_set_items.so
-session		required	@CMAKE_CURRENT_BINARY_DIR@/../src/pam_get_items.so
+session		required	@CMAKE_CURRENT_BINARY_DIR@/../src/modules/pam_set_items.so
+session		required	@CMAKE_CURRENT_BINARY_DIR@/../src/modules/pam_get_items.so
