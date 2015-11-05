@@ -229,13 +229,24 @@ enum pamtest_err run_pamtest(const char *service,
  *
  * @param[in]  test_cases The array of tests.
  *
- * @return 
+ * @return a pointer to the array of test_cases[] that corresponds to the
+ * first test case where the expected error code doesn't match the real error
+ * code.
  */
 const struct pam_testcase *pamtest_failed_case(struct pam_testcase *test_cases);
 #else
 #define pamtest_failed_case(test_cases) \
 	_pamtest_failed_case(test_cases, sizeof(test_cases) / sizeof(test_cases[0]))
 #endif
+
+/**
+ * @brief return a string representation of libpamtest error code.
+ *
+ * @param[in]  perr libpamtest error code
+ *
+ * @return String representation of the perr argument
+ */
+const char *pamtest_strerror(enum pamtest_err perr);
 
 /**
  * @brief This frees the string array returned by the PAMTEST_GETENVLIST test.

@@ -773,6 +773,34 @@ static void test_pam_vsyslog(void **state)
 	vsyslog_test_fn(test_ctx->ph, LOG_INFO, "This is pam_wrapper test\n");
 }
 
+static void test_libpamtest_strerror(void **state)
+{
+	const char *s;
+
+	(void) state;	/* unused */
+
+	s = pamtest_strerror(PAMTEST_ERR_OK);
+	assert_non_null(s);
+
+	s = pamtest_strerror(PAMTEST_ERR_START);
+	assert_non_null(s);
+
+	s = pamtest_strerror(PAMTEST_ERR_CASE);
+	assert_non_null(s);
+
+	s = pamtest_strerror(PAMTEST_ERR_OP);
+	assert_non_null(s);
+
+	s = pamtest_strerror(PAMTEST_ERR_END);
+	assert_non_null(s);
+
+	s = pamtest_strerror(PAMTEST_ERR_KEEPHANDLE);
+	assert_non_null(s);
+
+	s = pamtest_strerror(PAMTEST_ERR_INTERNAL);
+	assert_non_null(s);
+}
+
 #define test_setenv(env) setenv(env, "test_"env, 1)
 
 #define test_getenv(envlist, key) do {				    \
@@ -956,6 +984,7 @@ int main(void) {
 		cmocka_unit_test_setup_teardown(test_libpamtest_get_failed_test,
 						setup_passdb,
 						teardown_passdb),
+		cmocka_unit_test(test_libpamtest_strerror),
 		cmocka_unit_test(test_get_set),
 	};
 

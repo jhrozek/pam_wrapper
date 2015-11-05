@@ -145,6 +145,28 @@ _pamtest_failed_case(struct pam_testcase *test_cases,
 	return NULL;
 }
 
+const char *pamtest_strerror(enum pamtest_err perr)
+{
+	switch (perr) {
+	case PAMTEST_ERR_OK:
+		return "Success";
+	case PAMTEST_ERR_START:
+		return "pam_start failed()";
+	case PAMTEST_ERR_CASE:
+		return "Unexpected testcase result";
+	case PAMTEST_ERR_OP:
+		return "Could not run a test case";
+	case PAMTEST_ERR_END:
+		return "pam_end failed()";
+	case PAMTEST_ERR_KEEPHANDLE:
+		/* Fallthrough */
+	case PAMTEST_ERR_INTERNAL:
+		return "Internal libpamtest error";
+	}
+
+	return "Unknown";
+}
+
 struct pamtest_conv_ctx {
 	struct pamtest_conv_data *data;
 
