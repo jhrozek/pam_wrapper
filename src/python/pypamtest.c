@@ -37,11 +37,26 @@
 #define IS_PYTHON3 1
 #define RETURN_ON_ERROR return NULL
 #else
+#define IS_PYTHON3 0
 #define RETURN_ON_ERROR return
 #endif /* PY_MAJOR_VERSION */
 
 /* We only return up to 16 messages from the PAM conversation */
 #define PAM_CONV_MSG_MAX	16
+
+#if IS_PYTHON3
+PyMODINIT_FUNC PyInit_pypamtest(void);
+#else
+PyMODINIT_FUNC initpypamtest(void);
+#endif
+
+typedef struct {
+	PyObject_HEAD
+
+	enum pamtest_ops pam_operation;
+	int expected_rv;
+	int flags;
+} TestCaseObject;
 
 /**********************************************************
  *** module-specific exceptions
@@ -274,16 +289,6 @@ set_pypamtest_exception(PyObject *exc,
 	Py_XDECREF(test_repr);
 	Py_XDECREF(obj);
 }
-
-PyMODINIT_FUNC PyInit_pypamtest(void);
-
-typedef struct {
-	PyObject_HEAD
-
-	enum pamtest_ops pam_operation;
-	int expected_rv;
-	int flags;
-} TestCaseObject;
 
 /* Returned when doc(test_case) is invoked */
 PyDoc_STRVAR(TestCaseObject__doc__,
@@ -587,8 +592,16 @@ static PyObject *test_result_list_concat(PyObject *list,
 			return NULL;
 		}
 
+#if IS_PYTHON3
 		res = PyUnicode_FromFormat("%U%c%U%c",
 					   res, delim_pre, item, delim_post);
+#else
+		res = PyUnicode_FromFormat("%U%c%s%c",
+					   res,
+					   delim_pre,
+					   PyString_AsString(item),
+					   delim_post);
+#endif
 		Py_XDECREF(item);
 		if (item == NULL) {
 			PyMem_Free(res);
@@ -852,6 +865,20 @@ static int py_tc_list_to_cstruct_list(PyObject *py_test_list,
 	return 0;
 }
 
+PyDoc_STRVAR(RunPamTest__doc__,
+"Run PAM tests\n\n"
+"This function runs PAM test cases and reports result\n"
+"Paramaters:\n"
+"service: The PAM service to use in the conversation (string)\n"
+"username: The user to run PAM conversation as\n"
+"test_list: Sequence of pypamtest.TestCase objects\n"
+"echo_off_list: Sequence of strings that will be used by PAM "
+"conversation for PAM_PROMPT_ECHO_OFF input. These are typically "
+"passwords.\n"
+"echo_on_list: Sequence of strings that will be used by PAM "
+"conversation for PAM_PROMPT_ECHO_ON input.\n"
+);
+
 static PyObject *pypamtest_run_pamtest(PyObject *module, PyObject *args)
 {
 	int ok;
@@ -937,9 +964,9 @@ static PyObject *pypamtest_run_pamtest(PyObject *module, PyObject *args)
 static PyMethodDef pypamtest_module_methods[] = {
 	{
 		discard_const_p(char, "run_pamtest"),
-		(PyCFunction)pypamtest_run_pamtest,
+		(PyCFunction) pypamtest_run_pamtest,
 		METH_VARARGS,
-		discard_const_p(char, "TODO"),
+		RunPamTest__doc__,
 	},
 
 	{ NULL, NULL, 0, NULL }  /* Sentinel */
@@ -949,36 +976,46 @@ static PyMethodDef pypamtest_module_methods[] = {
  * This is the module structure describing the module and
  * to define methods
  */
+#if IS_PYTHON3
 static struct PyModuleDef pypamtestdef = {
 	.m_base = PyModuleDef_HEAD_INIT,
 	.m_name = PYTHON_MODULE_NAME,
 	.m_size = -1,
 	.m_methods = pypamtest_module_methods,
 };
+#endif
 
 /**********************************************************
  *** Initialize the module
  **********************************************************/
 
 PyDoc_STRVAR(PamTestError__doc__,
-"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec a diam lectus"
-"Sed sit amet ipsum mauris. Maecenas congue ligula ac quam viverra nec"
-"consectetur ante hendrerit. Donec et mollis dolor. Praesent et diam eget libero"
-"egestas mattis sit amet vitae augue. Nam tincidunt congue enim, ut porta lorem"
-"lacinia consectetur. Donec ut libero sed arcu vehicula ultricies"
+"pypamtest specific exception\n\n"
+"This exception is raised if the _pamtest() function fails. If _pamtest() "
+"returns PAMTEST_ERR_CASE (a test case returns unexpected error code), then "
+"the exception also details which test case failed."
 );
 
+#if IS_PYTHON3
 PyMODINIT_FUNC PyInit_pypamtest(void)
+#else
+PyMODINIT_FUNC initpypamtest(void)
+#endif
 {
 	PyObject *m;
 	int ret;
 
+#if IS_PYTHON3
 	m = PyModule_Create(&pypamtestdef);
 	if (m == NULL) {
 		RETURN_ON_ERROR;
 	}
+#else
+	m = Py_InitModule(discard_const_p(char, PYTHON_MODULE_NAME),
+			  pypamtest_module_methods);
+#endif
 
-	PyExc_PamTestError = PyErr_NewExceptionWithDoc("pypamtest.PamTestError",
+	PyExc_PamTestError = PyErr_NewExceptionWithDoc(discard_const_p(char, "pypamtest.PamTestError"),
 						       PamTestError__doc__,
 						       PyExc_EnvironmentError,
 						       NULL);
@@ -1040,5 +1077,7 @@ PyMODINIT_FUNC PyInit_pypamtest(void)
 	PyModule_AddObject(m, "TestResult",
 			   (PyObject *) &pypamtest_test_result);
 
+#if IS_PYTHON3
 	return m;
+#endif
 }

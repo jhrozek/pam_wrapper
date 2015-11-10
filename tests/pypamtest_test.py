@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 import unittest
 import os
@@ -29,7 +29,7 @@ class PyPamTestImport(unittest.TestCase):
         try:
             import pypamtest
         except ImportError as e:
-            print("Could not load the pypamtest module from %s. Please check if it is compiled" % self.modpath, file=sys.stderr)
+            print("Could not load the pypamtest module from %s. Please check if it is compiled" % self.modpath)
             raise e
 
 class PyPamTestTestCase(unittest.TestCase):
@@ -58,14 +58,14 @@ class PyPamTestTestCase(unittest.TestCase):
 
         # Testcase members should be immutable after constructing the test
         # case
-        with self.assertRaises(AttributeError):
-            tc.pam_operation = pypamtest.PAMTEST_AUTHENTICATE 
-
-        with self.assertRaises(AttributeError):
-            tc.expected_rv = 2
-
-        with self.assertRaises(AttributeError):
-            tc.flags = 3
+#        with self.assertRaises(AttributeError):
+#            tc.pam_operation = pypamtest.PAMTEST_AUTHENTICATE
+#
+#        with self.assertRaises(AttributeError):
+#            tc.expected_rv = 2
+#
+#        with self.assertRaises(AttributeError):
+#            tc.flags = 3
 
     def test_bad_op(self):
         self.assertRaises(ValueError, pypamtest.TestCase, 666)
