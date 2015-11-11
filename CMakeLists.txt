@@ -98,4 +98,19 @@ install(
         devel
 )
 
+set(LIBPAMTEST_LIBRARY_NAME ${CMAKE_SHARED_LIBRARY_PREFIX}pamtest${CMAKE_SHARED_LIBRARY_SUFFIX})
+
+configure_file(libpamtest-config.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/libpamtest-config.cmake @ONLY)
+configure_file(libpamtest-config-version.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/libpamtest-config-version.cmake @ONLY)
+
+install(
+    FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/libpamtest-config.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/libpamtest-config-version.cmake
+    DESTINATION
+        ${CMAKE_INSTALL_DIR}/libpamtest
+    COMPONENT
+        devel
+)
+
 add_subdirectory(doc)
