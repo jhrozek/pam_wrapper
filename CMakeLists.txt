@@ -8,7 +8,7 @@ set(APPLICATION_NAME ${PROJECT_NAME})
 
 set(APPLICATION_VERSION_MAJOR "1")
 set(APPLICATION_VERSION_MINOR "0")
-set(APPLICATION_VERSION_PATCH "2")
+set(APPLICATION_VERSION_PATCH "0")
 
 set(APPLICATION_VERSION "${APPLICATION_VERSION_MAJOR}.${APPLICATION_VERSION_MINOR}.${APPLICATION_VERSION_PATCH}")
 
@@ -19,8 +19,11 @@ set(APPLICATION_VERSION "${APPLICATION_VERSION_MAJOR}.${APPLICATION_VERSION_MINO
 #     Increment AGE. Set REVISION to 0
 #   If the source code was changed, but there were no interface changes:
 #     Increment REVISION.
-set(LIBRARY_VERSION "0.0.2")
+set(LIBRARY_VERSION "0.0.1")
 set(LIBRARY_SOVERSION "0")
+
+set(PAMTEST_LIBRARY_VERSION "0.0.1")
+set(PAMTEST_LIBRARY_SOVERSION "0")
 
 # where to look first for cmake modules, before ${CMAKE_ROOT}/Modules/ is checked
 set(CMAKE_MODULE_PATH
@@ -42,7 +45,7 @@ macro_ensure_out_of_source_build("${PROJECT_NAME} requires an out of source buil
 # Find out if we have threading available
 set(CMAKE_THREAD_PREFER_PTHREADS ON)
 find_package(Threads)
-set(Python_ADDITIONAL_VERSIONS 2.7 3.4)
+set(Python_ADDITIONAL_VERSIONS 2.6 2.7 3.3 3.4)
 find_package(PythonLibs)
 
 # config.h checks

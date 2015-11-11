@@ -1,8 +1,16 @@
 project(libpam_wrapper C)
 
 include_directories(${CMAKE_BINARY_DIR})
+
+###########################################################
+### pam_wrapper
+###########################################################
+
 add_library(pam_wrapper SHARED pam_wrapper.c)
-target_link_libraries(pam_wrapper ${PAMWRAP_REQUIRED_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+
+target_link_libraries(pam_wrapper
+                      ${PAMWRAP_REQUIRED_LIBRARIES}
+                      ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties(
   pam_wrapper
@@ -21,29 +29,34 @@ install(
   ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
 )
 
+###########################################################
+### libpamtest
+###########################################################
+
 set(pamtest_SOURCES
-	libpamtest.c
+    libpamtest.c
 )
 
 set(pamtest_HEADERS
-	${CMAKE_SOURCE_DIR}/include/libpamtest.h
+    ${CMAKE_SOURCE_DIR}/include/libpamtest.h
 )
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
 add_library(pamtest SHARED
-	    ${pamtest_SOURCES}
-	    ${pamtest_HEADERS}
+            ${pamtest_SOURCES}
+            ${pamtest_HEADERS}
 )
-target_link_libraries(pamtest
-			${PAM_LIBRARIES})
+target_link_libraries(pamtest ${PAM_LIBRARIES})
 
-install(
-  TARGETS
-    pamtest
-  RUNTIME DESTINATION ${BIN_INSTALL_DIR}
-  LIBRARY DESTINATION ${LIB_INSTALL_DIR}
-  ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
-)
+set_target_properties(pamtest
+    PROPERTIES
+        VERSION ${LIBRARY_VERSION}
+        SOVERSION ${LIBRARY_SOVERSION})
+
+install(TARGETS pamtest
+    RUNTIME DESTINATION ${BIN_INSTALL_DIR}
+    LIBRARY DESTINATION ${LIB_INSTALL_DIR}
+    ARCHIVE DESTINATION ${LIB_INSTALL_DIR})
 
 add_subdirectory(modules)
 if (PYTHONLIBS_FOUND)
