@@ -33,7 +33,9 @@
 #define ITEM_FILE_KEY	"item_file="
 
 static const char *envs[] = {
+#ifndef HAVE_OPENPAM
 	"PAM_SERVICE",
+#endif
 	"PAM_USER",
 	"PAM_USER_PROMPT",
 	"PAM_TTY",
@@ -51,7 +53,9 @@ static const char *envs[] = {
 };
 
 static const int items[] = {
+#ifndef HAVE_OPENPAM
 	PAM_SERVICE,
+#endif
 	PAM_USER,
 	PAM_USER_PROMPT,
 	PAM_TTY,

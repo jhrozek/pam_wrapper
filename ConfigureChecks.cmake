@@ -46,6 +46,29 @@ check_function_exists(strncpy HAVE_STRNCPY)
 check_function_exists(vsnprintf HAVE_VSNPRINTF)
 check_function_exists(snprintf HAVE_SNPRINTF)
 
+set(CMAKE_REQUIRED_LIBRARIES pam)
+check_function_exists(pam_vsyslog HAVE_PAM_VSYSLOG)
+check_function_exists(pam_syslog HAVE_PAM_SYSLOG)
+set(CMAKE_REQUIRED_LIBRARIES)
+
+check_prototype_definition(pam_vprompt
+    "int pam_vprompt(const pam_handle_t *_pamh, int _style, char **_resp, const char *_fmt, va_list _ap)"
+    "-1"
+    "stdio.h;sys/types.h;security/pam_appl.h;security/pam_modules.h"
+    HAVE_PAM_VPROMPT_CONST)
+
+check_prototype_definition(pam_prompt
+    "int pam_prompt(const pam_handle_t *_pamh, int _style, char **_resp, const char *_fmt, ...)"
+    "-1"
+    "stdio.h;sys/types.h;security/pam_appl.h;security/pam_modules.h"
+    HAVE_PAM_PROMPT_CONST)
+
+check_prototype_definition(pam_strerror
+    "const char *pam_strerror(const pam_handle_t *_pamh, int _error_number)"
+    "NULL"
+    "stdio.h;sys/types.h;security/pam_appl.h;security/pam_modules.h"
+    HAVE_PAM_STRERROR_CONST)
+
 # LIBRARIES
 find_library(PAM_LIBRARY NAMES libpam.so.0 pam)
 set(PAM_LIBRARY ${PAM_LIBRARY})
@@ -53,6 +76,13 @@ find_library(PAM_MISC_LIBRARY NAMES pam_misc)
 if (PAM_MISC_LIBRARY)
 	set(HAVE_PAM_MISC TRUE)
 endif()
+
+check_library_exists(${PAM_LIBRARY} openpam_set_option "" HAVE_OPENPAM)
+
+# PAM FUNCTIONS
+set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} ${PAM_LIBRARY})
+check_function_exists(pam_syslog HAVE_PAM_SYSLOG)
+check_function_exists(pam_vsyslog HAVE_PAM_VSYSLOG)
 
 # OPTIONS
 
@@ -66,6 +96,11 @@ if (LINUX)
 
     set(CMAKE_REQUIRED_DEFINITIONS)
 endif (LINUX)
+
+# COMPAT
+if (HAVE_OPENPAM_H)
+    set(HAVE_OPENPAM    1)
+endif ()
 
 check_c_source_compiles("
 #include <stdbool.h>

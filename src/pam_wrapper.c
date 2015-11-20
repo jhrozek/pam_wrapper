@@ -33,6 +33,7 @@
 #include <dlfcn.h>
 #include <libgen.h>
 #include <signal.h>
+#include <limits.h>
 
 #include <ftw.h>
 
@@ -81,6 +82,14 @@
 
 #ifndef SAFE_FREE
 #define SAFE_FREE(x) do { if ((x) != NULL) {free(x); (x)=NULL;} } while(0)
+#endif
+
+#ifndef discard_const
+#define discard_const(ptr) ((void *)((uintptr_t)(ptr)))
+#endif
+
+#ifndef discard_const_p
+#define discard_const_p(type, ptr) ((type *)discard_const(ptr))
 #endif
 
 /*****************
@@ -203,12 +212,15 @@ typedef int (*__libpam_pam_vprompt)(pam_handle_t *pamh,
 				    const char *fmt,
 				    va_list args);
 
-typedef const char * (*__libpam_pam_strerror)(pam_handle_t *pamh, int errnum);
+typedef const char * (*__libpam_pam_strerror)(pam_handle_t *pamh,
+                                              int errnum);
 
+#ifdef HAVE_PAM_VSYSLOG
 typedef void (*__libpam_pam_vsyslog)(const pam_handle_t *pamh,
 				     int priority,
 				     const char *fmt,
 				     va_list args);
+#endif
 
 #define PWRAP_SYMBOL_ENTRY(i) \
 	union { \
@@ -234,7 +246,9 @@ struct pwrap_libpam_symbols {
 	PWRAP_SYMBOL_ENTRY(pam_set_data);
 	PWRAP_SYMBOL_ENTRY(pam_vprompt);
 	PWRAP_SYMBOL_ENTRY(pam_strerror);
+#ifdef HAVE_PAM_VSYSLOG
 	PWRAP_SYMBOL_ENTRY(pam_vsyslog);
+#endif
 };
 
 struct pwrap {
@@ -282,6 +296,8 @@ static void *pwrap_load_lib_handle(enum pwrap_lib lib)
 		if (handle == NULL) {
 			handle = dlopen(pwrap.libpam_so, flags);
 			if (handle != NULL) {
+				PWRAP_LOG(PWRAP_LOG_DEBUG,
+					  "Opened %s\n", pwrap.libpam_so);
 				pwrap.libpam.handle = handle;
 				break;
 			}
@@ -469,13 +485,18 @@ static int libpam_pam_vprompt(pam_handle_t *pamh,
 							  args);
 }
 
+#ifdef HAVE_PAM_STRERROR_CONST
+static const char *libpam_pam_strerror(const pam_handle_t *pamh, int errnum)
+#else
 static const char *libpam_pam_strerror(pam_handle_t *pamh, int errnum)
+#endif
 {
 	pwrap_bind_symbol_libpam(pam_strerror);
 
-	return pwrap.libpam.symbols._libpam_pam_strerror.f(pamh, errnum);
+	return pwrap.libpam.symbols._libpam_pam_strerror.f(discard_const_p(pam_handle_t, pamh), errnum);
 }
 
+#ifdef HAVE_PAM_VSYSLOG
 static void libpam_pam_vsyslog(const pam_handle_t *pamh,
 			       int priority,
 			       const char *fmt,
@@ -488,6 +509,7 @@ static void libpam_pam_vsyslog(const pam_handle_t *pamh,
 						   fmt,
 						   args);
 }
+#endif
 
 /*********************************************************
  * PWRAP INIT
@@ -548,7 +570,7 @@ static int p_copy(const char *src, const char *dst, const char *pdir, mode_t mod
 			/* done */
 			break;
 		} else if (bread < 0) {
-			errno = ENODATA;
+			errno = EIO;
 			rc = -1;
 			goto out;
 		}
@@ -570,7 +592,7 @@ static int p_copy(const char *src, const char *dst, const char *pdir, mode_t mod
 
 		bwritten = write(dstfd, buf, bread);
 		if (bwritten < 0) {
-			errno = ENODATA;
+			errno = EIO;
 			rc = -1;
 			goto out;
 		}
@@ -592,6 +614,24 @@ out:
 
 	return rc;
 }
+
+/* Do not pass any flag if not defined */
+#ifndef FTW_ACTIONRETVAL
+#define FTW_ACTIONRETVAL 0
+#endif
+
+/* Action return values */
+#ifndef FTW_STOP
+#define FTW_STOP -1
+#endif
+
+#ifndef FTW_CONTINUE
+#define FTW_CONTINUE 0
+#endif
+
+#ifndef FTW_SKIP_SUBTREE
+#define FTW_SKIP_SUBTREE 0
+#endif
 
 static int copy_ftw(const char *fpath,
 		    const struct stat *sb,
@@ -926,6 +966,56 @@ void pwrap_constructor(void)
 }
 
 
+#ifdef HAVE_OPENPAM
+static int pwrap_openpam_start(const char *service_name,
+			       const char *user,
+			       const struct pam_conv *pam_conversation,
+			       pam_handle_t **pamh)
+{
+	int rv;
+	char fullpath[1024];
+
+	rv = openpam_set_feature(OPENPAM_RESTRICT_SERVICE_NAME, 0);
+	if (rv != PAM_SUCCESS) {
+		PWRAP_LOG(PWRAP_LOG_ERROR,
+			  "Cannot disable OPENPAM_RESTRICT_SERVICE_NAME");
+		return rv;
+	}
+
+	rv = openpam_set_feature(OPENPAM_RESTRICT_MODULE_NAME, 0);
+	if (rv != PAM_SUCCESS) {
+		PWRAP_LOG(PWRAP_LOG_ERROR,
+			  "Cannot disable OPENPAM_RESTRICT_MODULE_NAME");
+		return rv;
+	}
+
+	rv = openpam_set_feature(OPENPAM_VERIFY_MODULE_FILE, 0);
+	if (rv != PAM_SUCCESS) {
+		PWRAP_LOG(PWRAP_LOG_ERROR,
+			  "Cannot disable OPENPAM_VERIFY_MODULE_FILE");
+		return rv;
+	}
+
+	rv = openpam_set_feature(OPENPAM_VERIFY_POLICY_FILE, 0);
+	if (rv != PAM_SUCCESS) {
+		PWRAP_LOG(PWRAP_LOG_ERROR,
+			  "Cannot disable OPENPAM_VERIFY_POLICY_FILE");
+		return rv;
+	}
+
+	snprintf(fullpath,
+		 sizeof(fullpath),
+		 "%s/%s",
+		 pwrap.config_dir,
+		 service_name);
+
+	return libpam_pam_start(fullpath,
+				user,
+				pam_conversation,
+				pamh);
+}
+#endif
+
 static int pwrap_pam_start(const char *service_name,
 			   const char *user,
 			   const struct pam_conv *pam_conversation,
@@ -936,10 +1026,17 @@ static int pwrap_pam_start(const char *service_name,
 		  service_name,
 		  user);
 
+#ifdef HAVE_OPENPAM
+	return pwrap_openpam_start(service_name,
+				   user,
+				   pam_conversation,
+				   pamh);
+#else
 	return libpam_pam_start(service_name,
 				user,
 				pam_conversation,
 				pamh);
+#endif
 }
 
 
@@ -1062,11 +1159,31 @@ int pam_setcred(pam_handle_t *pamh, int flags)
 	return pwrap_pam_setcred(pamh, flags);
 }
 
+static const char *pwrap_get_service(const char *libpam_service)
+{
+#ifdef HAVE_OPENPAM
+	const char *service_name;
+
+	PWRAP_LOG(PWRAP_LOG_TRACE,
+		  "internal PAM_SERVICE=%s", libpam_service);
+	service_name = strrchr(libpam_service, '/');
+	if (service_name != NULL && service_name[0] == '/') {
+		service_name++;
+	}
+	PWRAP_LOG(PWRAP_LOG_TRACE,
+		  "PAM_SERVICE=%s", service_name);
+	return service_name;
+#else
+	return libpam_service;
+#endif
+}
+
 static int pwrap_pam_get_item(const pam_handle_t *pamh,
 			      int item_type,
 			      const void **item)
 {
 	int rc;
+	const char *svc;
 
 	PWRAP_LOG(PWRAP_LOG_TRACE, "pwrap_get_item called");
 
@@ -1080,9 +1197,12 @@ static int pwrap_pam_get_item(const pam_handle_t *pamh,
 				  (char *) *item);
 			break;
 		case PAM_SERVICE:
+			svc = pwrap_get_service((const char *) *item);
+
 			PWRAP_LOG(PWRAP_LOG_TRACE,
 				  "pwrap_get_item PAM_SERVICE=%s",
-				  (char *) *item);
+				  (char *) svc);
+			*item = svc;
 			break;
 		case PAM_USER_PROMPT:
 			PWRAP_LOG(PWRAP_LOG_TRACE,
@@ -1250,41 +1370,76 @@ int pam_set_data(pam_handle_t *pamh,
 	return pwrap_pam_set_data(pamh, module_data_name, data, cleanup);
 }
 
+#ifdef HAVE_PAM_VPROMPT_CONST
+static int pwrap_pam_vprompt(const pam_handle_t *pamh,
+#else
 static int pwrap_pam_vprompt(pam_handle_t *pamh,
+#endif
 			     int style,
 			     char **response,
 			     const char *fmt,
 			     va_list args)
 {
 	PWRAP_LOG(PWRAP_LOG_TRACE, "pwrap_pam_vprompt style=%d", style);
-	return libpam_pam_vprompt(pamh, style, response, fmt, args);
+	return libpam_pam_vprompt(discard_const_p(pam_handle_t, pamh),
+				  style,
+				  response,
+				  fmt,
+				  args);
 }
 
+#ifdef HAVE_PAM_VPROMPT_CONST
+int pam_vprompt(const pam_handle_t *pamh,
+		int style,
+		char **response,
+		const char *fmt,
+		va_list args)
+#else
 int pam_vprompt(pam_handle_t *pamh,
 		int style,
 		char **response,
 		const char *fmt,
 		va_list args)
+#endif
 {
-	return pwrap_pam_vprompt(pamh, style, response, fmt, args);
+	return pwrap_pam_vprompt(discard_const_p(pam_handle_t, pamh),
+				 style,
+				 response,
+				 fmt,
+				 args);
 }
 
+#ifdef HAVE_PAM_PROMPT_CONST
+int pam_prompt(const pam_handle_t *pamh,
+	       int style,
+	       char **response,
+	       const char *fmt, ...)
+#else
 int pam_prompt(pam_handle_t *pamh,
 	       int style,
 	       char **response,
 	       const char *fmt, ...)
+#endif
 {
 	va_list args;
 	int rv;
 
 	va_start(args, fmt);
-	rv = pwrap_pam_vprompt(pamh, style, response, fmt, args);
+	rv = pwrap_pam_vprompt(discard_const_p(pam_handle_t, pamh),
+			       style,
+			       response,
+			       fmt,
+			       args);
 	va_end(args);
 
 	return rv;  
 }
 
+#ifdef HAVE_PAM_STRERROR_CONST
+static const char *pwrap_pam_strerror(const pam_handle_t *pamh, int errnum)
+#else
 static const char *pwrap_pam_strerror(pam_handle_t *pamh, int errnum)
+#endif
 {
 	const char *str;
 
@@ -1292,18 +1447,25 @@ static const char *pwrap_pam_strerror(pam_handle_t *pamh, int errnum)
 
 	PWRAP_LOG(PWRAP_LOG_TRACE, "pam_strerror errnum=%d", errnum);
 
-	str = libpam_pam_strerror(pamh, errnum);
+	str = libpam_pam_strerror(discard_const_p(pam_handle_t, pamh),
+				  errnum);
 
 	PWRAP_LOG(PWRAP_LOG_TRACE, "pam_strerror error=%s", str);
 
 	return str;
 }
 
+#ifdef HAVE_PAM_STRERROR_CONST
+const char *pam_strerror(const pam_handle_t *pamh, int errnum)
+#else
 const char *pam_strerror(pam_handle_t *pamh, int errnum)
+#endif
 {
-	return pwrap_pam_strerror(pamh, errnum);
+	return pwrap_pam_strerror(discard_const_p(pam_handle_t, pamh),
+				  errnum);
 }
 
+#ifdef HAVE_PAM_VSYSLOG
 static void pwrap_pam_vsyslog(const pam_handle_t *pamh,
 			      int priority,
 			      const char *fmt,
@@ -1320,7 +1482,9 @@ void pam_vsyslog(const pam_handle_t *pamh,
 {
 	pwrap_pam_vsyslog(pamh, priority, fmt, args);
 }
+#endif
 
+#ifdef HAVE_PAM_SYSLOG
 void pam_syslog(const pam_handle_t *pamh,
 	        int priority,
 	        const char *fmt, ...)
@@ -1331,6 +1495,7 @@ void pam_syslog(const pam_handle_t *pamh,
 	pwrap_pam_vsyslog(pamh, priority, fmt, args);
 	va_end(args);
 }
+#endif
 
 /****************************
  * DESTRUCTOR

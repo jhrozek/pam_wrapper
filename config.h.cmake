@@ -19,11 +19,21 @@
 #cmakedefine HAVE_SECURITY_PAM_APPL_H 1
 #cmakedefine HAVE_SECURITY_PAM_MODULES_H 1
 #cmakedefine HAVE_SECURITY_PAM_EXT_H 1
+#cmakedefine HAVE_OPENPAM ${HAVE_OPENPAM}
+#cmakedefine HAVE_PAM_SYSLOG 1
+#cmakedefine HAVE_PAM_VSYSLOG 1
 
 /*************************** FUNCTIONS ***************************/
 
 /* Define to 1 if you have the `seteuid' function. */
 #cmakedefine HAVE_SETEUID 1
+
+#cmakedefine HAVE_PAM_VSYSLOG 1
+#cmakedefine HAVE_PAM_SYSLOG 1
+
+#cmakedefine HAVE_PAM_VPROMPT_CONST 1
+#cmakedefine HAVE_PAM_PROMPT_CONST 1
+#cmakedefine HAVE_PAM_STRERROR_CONST 1
 
 /*************************** LIBRARIES ***************************/
 #cmakedefine PAM_LIBRARY "${PAM_LIBRARY}"

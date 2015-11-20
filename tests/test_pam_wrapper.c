@@ -380,6 +380,8 @@ static void test_pam_env_functions(void **state)
 	assert_null(vlist[2]);
 	free_vlist(vlist);
 
+#ifndef HAVE_OPENPAM
+	/* OpenPAM does not support this feature */
 	rv = pam_putenv(test_ctx->ph, "KEY2");
 	assert_int_equal(rv, PAM_SUCCESS);
 
@@ -389,6 +391,7 @@ static void test_pam_env_functions(void **state)
 	assert_string_equal(vlist[0], "KEY=value");
 	assert_null(vlist[1]);
 	free_vlist(vlist);
+#endif
 }
 
 static const char *string_in_list(char **list, const char *key)
@@ -433,7 +436,13 @@ static void test_pam_session(void **state)
 
 	/* environment is cleared after session close */
 	assert_non_null(tests[3].case_out.envlist);
+#ifdef HAVE_OPENPAM
+	v = string_in_list(tests[3].case_out.envlist, "HOMEDIR");
+	assert_non_null(v);
+	assert_string_equal(v, "");
+#else
 	assert_null(tests[3].case_out.envlist[0]);
+#endif
 	pamtest_free_env(tests[3].case_out.envlist);
 }
 
@@ -555,11 +564,23 @@ static void test_pam_item_functions(void **state)
 	assert_int_equal(rv, PAM_SUCCESS);
 	assert_string_equal(item, "test_login");
 
-	rv = pam_get_item(test_ctx->ph, PAM_AUTHTOK, (const void **) &item);
-	assert_int_equal(rv, PAM_BAD_ITEM);
-
 	rv = pam_set_item(test_ctx->ph, PAM_AUTHTOK, "mysecret");
+#ifdef HAVE_OPENPAM
+	/* OpenPAM allows PAM_AUTHTOK getset */
+	assert_int_equal(rv, PAM_SUCCESS);
+#else
 	assert_int_equal(rv, PAM_BAD_ITEM);
+#endif
+
+	rv = pam_get_item(test_ctx->ph, PAM_AUTHTOK, (const void **) &item);
+#ifdef HAVE_OPENPAM
+	/* OpenPAM allows PAM_AUTHTOK getset */
+	assert_int_equal(rv, PAM_SUCCESS);
+	assert_string_equal(item, "mysecret");
+#else
+	assert_int_equal(rv, PAM_BAD_ITEM);
+#endif
+
 }
 
 static int add_to_reply(struct pam_response *res,
@@ -752,6 +773,7 @@ static void test_pam_authenticate_db_opt_err(void **state)
 }
 
 
+#ifdef HAVE_PAM_VSYSLOG
 static void vsyslog_test_fn(const pam_handle_t *pamh,
 			    int priority,
 			    const char *fmt, ...)
@@ -772,6 +794,7 @@ static void test_pam_vsyslog(void **state)
 	pam_syslog(test_ctx->ph, LOG_INFO, "This is pam_wrapper test\n");
 	vsyslog_test_fn(test_ctx->ph, LOG_INFO, "This is pam_wrapper test\n");
 }
+#endif /* HAVE_PAM_VSYSLOG */
 
 static void test_libpamtest_strerror(void **state)
 {
@@ -812,9 +835,10 @@ static void test_libpamtest_strerror(void **state)
 
 static void test_get_set(void **state)
 {
+#ifndef HAVE_OPENPAM
 	const char *svc;
+#endif
 	enum pamtest_err perr;
-	const struct pam_testcase *failed_tc;
 	struct pam_testcase tests[] = {
 		pam_test(PAMTEST_OPEN_SESSION, PAM_SUCCESS),
 		pam_test(PAMTEST_GETENVLIST, PAM_SUCCESS),
@@ -822,7 +846,9 @@ static void test_get_set(void **state)
 
 	(void) state;	/* unused */
 
+#ifndef HAVE_OPENPAM
 	test_setenv("PAM_SERVICE");
+#endif
 	test_setenv("PAM_USER");
 	test_setenv("PAM_USER_PROMPT");
 	test_setenv("PAM_TTY");
@@ -840,15 +866,15 @@ static void test_get_set(void **state)
 	perr = run_pamtest("pwrap_get_set", "trinity", NULL, tests);
 	assert_int_equal(perr, PAMTEST_ERR_OK);
 
-	/* PAM_SERVICE is a special case, libpam lowercases it */
+	/* PAM_SERVICE is a special case, Linux's libpam lowercases it.
+	 * OpenPAM only allows PAM_SERVICE to be set by pam_start()
+	 */
+#ifndef HAVE_OPENPAM
 	svc = string_in_list(tests[1].case_out.envlist, "PAM_SERVICE");
 	assert_non_null(svc);
 	assert_string_equal(svc, "test_pam_service");
+#endif
 
-	failed_tc = pamtest_failed_case(tests);
-	assert_null(failed_tc);
-
-	//test_getenv(tests[1].case_out.envlist, "PAM_SERVICE");
 	test_getenv(tests[1].case_out.envlist, "PAM_USER");
 	test_getenv(tests[1].case_out.envlist, "PAM_USER_PROMPT");
 	test_getenv(tests[1].case_out.envlist, "PAM_TTY");
@@ -975,9 +1001,11 @@ int main(void) {
 		cmocka_unit_test_setup_teardown(test_pam_authenticate_db_opt_err,
 						setup_ctx_only,
 						teardown_simple),
+#ifdef HAVE_PAM_VSYSLOG
 		cmocka_unit_test_setup_teardown(test_pam_vsyslog,
 						setup_noconv,
 						teardown),
+#endif
 		cmocka_unit_test_setup_teardown(test_libpamtest_keepopen,
 						setup_passdb,
 						teardown_passdb),

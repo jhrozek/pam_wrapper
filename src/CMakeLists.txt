@@ -8,9 +8,14 @@ include_directories(${CMAKE_BINARY_DIR})
 
 add_library(pam_wrapper SHARED pam_wrapper.c)
 
-target_link_libraries(pam_wrapper
-                      ${PAMWRAP_REQUIRED_LIBRARIES}
-                      ${CMAKE_THREAD_LIBS_INIT})
+set(PAM_WRAPPER_LIBRARIES
+	${PAMWRAP_REQUIRED_LIBRARIES}
+	${CMAKE_THREAD_LIBS_INIT})
+if (HAVE_OPENPAM)
+	list(APPEND PAM_WRAPPER_LIBRARIES pam)
+endif (HAVE_OPENPAM)
+
+target_link_libraries(pam_wrapper ${PAM_WRAPPER_LIBRARIES})
 
 set_target_properties(
   pam_wrapper
@@ -41,6 +46,11 @@ set(pamtest_HEADERS
     ${CMAKE_SOURCE_DIR}/include/libpamtest.h
 )
 include_directories(${CMAKE_SOURCE_DIR}/include)
+
+set(PAM_LIBRARIES pam)
+if (HAVE_PAM_MISC)
+	list(APPEND PAM_LIBRARIES pam_misc)
+endif (HAVE_PAM_MISC)
 
 add_library(pamtest SHARED
             ${pamtest_SOURCES}

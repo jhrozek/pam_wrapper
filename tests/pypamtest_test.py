@@ -124,7 +124,7 @@ class PyPamTestRunTest(unittest.TestCase):
         self.assertRaisesRegexp(pypamtest.PamTestError,
                                 "Error \[2\]: Test case { pam_operation \[0\] "
                                 "expected_rv \[0\] flags \[0\] } "
-                                "retured \[7\]",
+                                "retured \[\d\]",
                                 pypamtest.run_pamtest,
                                 "neo", "matrix_py", [tc], [ neo_password ])
 

@@ -16,7 +16,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef HAVE_OPENPAM
+#include <security/openpam.h>
+#endif
+
 /* OpenPAM doesn't define PAM_BAD_ITEM */
 #ifndef PAM_BAD_ITEM
 #define PAM_BAD_ITEM	PAM_SYSTEM_ERR
 #endif /* PAM_BAD_ITEM */
+
+#ifndef ENODATA
+#define ENODATA EPIPE
+#endif

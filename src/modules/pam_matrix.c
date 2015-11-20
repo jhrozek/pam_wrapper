@@ -23,11 +23,21 @@
 #include <pwd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
 #include <time.h>
+#include <stdint.h>
+
+#ifndef discard_const
+#define discard_const(ptr) ((void *)((uintptr_t)(ptr)))
+#endif
+
+#ifndef discard_const_p
+#define discard_const_p(type, ptr) ((type *)discard_const(ptr))
+#endif
 
 #ifdef HAVE_SECURITY_PAM_APPL_H
 #include <security/pam_appl.h>
@@ -80,6 +90,14 @@
 		}			\
 	}				\
 } while(0);
+
+#ifndef discard_const
+#define discard_const(ptr) ((void *)((uintptr_t)(ptr)))
+#endif
+
+#ifndef discard_const_p
+#define discard_const_p(type, ptr) ((type *)discard_const(ptr))
+#endif
 
 struct pam_lib_items {
 	const char *username;
@@ -301,7 +319,7 @@ static int pam_matrix_conv(pam_handle_t *pamh,
 	}
 
 	pam_msg->msg_style = msg_style;
-	pam_msg->msg = msg;
+	pam_msg->msg = discard_const_p(char, msg);
 
 	if (msg_style == PAM_PROMPT_ECHO_ON ||
 	    msg_style == PAM_PROMPT_ECHO_OFF) {
@@ -710,7 +728,14 @@ pam_sm_close_session(pam_handle_t *pamh, int flags,
 		goto done;
 	}
 
+#if HAVE_OPENPAM
+	/* OpenPAM does not support unsetting variable, set it to
+	 * and empty string instead
+	 */
+	rv = pam_putenv(pamh, HOME_VAR"=");
+#else
 	rv = pam_putenv(pamh, HOME_VAR);
+#endif
 	if (rv != PAM_SUCCESS) {
 		goto done;
 	}
