@@ -46,6 +46,13 @@
 #include "pwrap_compat.h"
 #include "libpamtest.h"
 
+/* GCC have printf type attribute check. */
+#ifdef HAVE_FUNCTION_ATTRIBUTE_FORMAT
+#define PRINTF_ATTRIBUTE(a,b) __attribute__ ((__format__ (__printf__, a, b)))
+#else
+#define PRINTF_ATTRIBUTE(a,b)
+#endif /* HAVE_FUNCTION_ATTRIBUTE_FORMAT */
+
 #ifndef ZERO_STRUCT
 #define ZERO_STRUCT(x) memset((char *)&(x), 0, sizeof(x))
 #endif
@@ -643,6 +650,9 @@ static int pwrap_echo_conv(int num_msg,
 }
 
 static int vprompt_test_fn(pam_handle_t *pamh, int style,
+			   char **response, const char *fmt, ...) PRINTF_ATTRIBUTE(4, 5);
+
+static int vprompt_test_fn(pam_handle_t *pamh, int style,
 			   char **response, const char *fmt, ...)
 {
 	va_list args;
@@ -774,6 +784,10 @@ static void test_pam_authenticate_db_opt_err(void **state)
 
 
 #ifdef HAVE_PAM_VSYSLOG
+static void vsyslog_test_fn(const pam_handle_t *pamh,
+			    int priority,
+			    const char *fmt, ...) PRINTF_ATTRIBUTE(3, 4);
+
 static void vsyslog_test_fn(const pam_handle_t *pamh,
 			    int priority,
 			    const char *fmt, ...)
