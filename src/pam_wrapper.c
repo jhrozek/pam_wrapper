@@ -655,9 +655,9 @@ static void pwrap_clean_stale_dirs(const char *dir)
 	ssize_t rc;
 
 	snprintf(pidfile,
-			sizeof(pidfile),
-			"%s/pid",
-			dir);
+		 sizeof(pidfile),
+		 "%s/pid",
+		 dir);
 
 	rc = lstat(pidfile, &sb);
 	if (rc == 0) {
@@ -744,7 +744,8 @@ static void pwrap_init(void)
 
 	if (i == 36) {
 		PWRAP_LOG(PWRAP_LOG_ERROR,
-			  "Failed to find a possible path to create pam_wrapper config dir: %s",
+			  "Failed to find a possible path to create "
+			  "pam_wrapper config dir: %s",
 			  tmp_config_dir);
 		exit(1);
 	}
@@ -797,6 +798,8 @@ static void pwrap_init(void)
 		PWRAP_LOG(PWRAP_LOG_ERROR,
 			  "Failed to create pam_wrapper config dir: %s - %s",
 			  tmp_config_dir, strerror(errno));
+		p_rmdirs(pwrap.config_dir);
+		exit(1);
 	}
 
 	snprintf(libpam_path,
@@ -808,6 +811,7 @@ static void pwrap_init(void)
 	pwrap.libpam_so = strdup(libpam_path);
 	if (pwrap.libpam_so == NULL) {
 		PWRAP_LOG(PWRAP_LOG_ERROR, "No memory");
+		p_rmdirs(pwrap.config_dir);
 		exit(1);
 	}
 
@@ -823,6 +827,7 @@ static void pwrap_init(void)
 		  pam_library);
 	if (ret <= 0) {
 		PWRAP_LOG(PWRAP_LOG_ERROR, "Failed to read %s link", LIBPAM_NAME);
+		p_rmdirs(pwrap.config_dir);
 		exit(1);
 	}
 
@@ -841,6 +846,7 @@ static void pwrap_init(void)
 		if (dname == NULL) {
 			PWRAP_LOG(PWRAP_LOG_ERROR,
 				  "No directory component in %s", libpam_path);
+			p_rmdirs(pwrap.config_dir);
 			exit(1);
 		}
 
@@ -859,6 +865,7 @@ static void pwrap_init(void)
 			  "Failed to copy %s - error: %s",
 			  LIBPAM_NAME,
 			  strerror(errno));
+		p_rmdirs(pwrap.config_dir);
 		exit(1);
 	}
 
@@ -867,12 +874,14 @@ static void pwrap_init(void)
 	env = getenv("PAM_WRAPPER_CONFDIR");
 	if (env == NULL) {
 		PWRAP_LOG(PWRAP_LOG_ERROR, "No config file");
+		p_rmdirs(pwrap.config_dir);
 		exit(1);
 	}
 
 	rc = copy_confdir(env);
 	if (rc != 0) {
 		PWRAP_LOG(PWRAP_LOG_ERROR, "Failed to copy config files");
+		p_rmdirs(pwrap.config_dir);
 		exit(1);
 	}
 
@@ -1327,7 +1336,8 @@ void pam_syslog(const pam_handle_t *pamh,
  * DESTRUCTOR
  ***************************/
 
-static int p_rmdirs(const char *path) {
+static int p_rmdirs(const char *path)
+{
 	DIR *d;
 	struct dirent *dp;
 	struct stat sb;
