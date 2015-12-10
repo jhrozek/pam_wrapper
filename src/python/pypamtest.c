@@ -261,7 +261,7 @@ set_pypamtest_exception(PyObject *exc,
 	/* repr_fmt is fixed and contains just %d expansions, so this is safe */
 	char test_repr[256] = { '\0' };
 	const char *strerr;
-	const struct pam_testcase *failed;
+	const struct pam_testcase *failed = NULL;
 
 	if (exc == NULL) {
 		PyErr_BadArgument();
@@ -280,7 +280,7 @@ set_pypamtest_exception(PyObject *exc,
 		}
 	}
 
-	if (test_repr[0] != '\0') {
+	if (test_repr[0] != '\0' && failed != NULL) {
 		PyErr_Format(exc,
 			     "Error [%d]: Test case %s retured [%d]",
 			     perr, test_repr, failed->op_rv);
