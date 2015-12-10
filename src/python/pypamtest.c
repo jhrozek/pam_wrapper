@@ -1013,6 +1013,10 @@ PyMODINIT_FUNC initpypamtest(void)
 #endif
 {
 	PyObject *m;
+	union {
+		PyTypeObject *type_obj;
+		PyObject *obj;
+	} pypam_object;
 	int ret;
 
 #if IS_PYTHON3
@@ -1074,18 +1078,19 @@ PyMODINIT_FUNC initpypamtest(void)
 		RETURN_ON_ERROR;
 	}
 
-	if (PyType_Ready(&pypamtest_test_case) < 0) {
+	pypam_object.type_obj = &pypamtest_test_case;
+	if (PyType_Ready(pypam_object.type_obj) < 0) {
 		RETURN_ON_ERROR;
 	}
-	Py_INCREF(&pypamtest_test_case);
-	PyModule_AddObject(m, "TestCase", (PyObject *) &pypamtest_test_case);
+	Py_INCREF(pypam_object.obj);
+	PyModule_AddObject(m, "TestCase", pypam_object.obj);
 
-	if (PyType_Ready(&pypamtest_test_result) < 0) {
+	pypam_object.type_obj = &pypamtest_test_result;
+	if (PyType_Ready(pypam_object.type_obj) < 0) {
 		RETURN_ON_ERROR;
 	}
-	Py_INCREF(&pypamtest_test_result);
-	PyModule_AddObject(m, "TestResult",
-			   (PyObject *) &pypamtest_test_result);
+	Py_INCREF(pypam_object.obj);
+	PyModule_AddObject(m, "TestResult", pypam_object.obj);
 
 #if IS_PYTHON3
 	return m;
