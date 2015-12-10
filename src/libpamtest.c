@@ -198,7 +198,7 @@ static int pamtest_simple_conv(int num_msg,
 {
 	int i, ri;
 	int ret;
-	struct pam_response *reply;
+	struct pam_response *reply = NULL;
 	const char *prompt;
 	struct pamtest_conv_ctx *cctx = \
 				    (struct pamtest_conv_ctx *) appdata_ptr;
