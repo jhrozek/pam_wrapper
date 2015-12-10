@@ -263,6 +263,11 @@ set_pypamtest_exception(PyObject *exc,
 	const char *strerr;
 	const struct pam_testcase *failed;
 
+	if (exc == NULL) {
+		PyErr_BadArgument();
+		return;
+	}
+
 	strerr = pamtest_strerror(perr);
 
 	if (perr == PAMTEST_ERR_CASE) {
