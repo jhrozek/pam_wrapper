@@ -47,9 +47,11 @@ set_property(
     PROPERTY
         ENVIRONMENT ${TEST_ENVIRONMENT})
 
-add_test(pypamtest_test ${CMAKE_CURRENT_SOURCE_DIR}/pypamtest_test.py)
-set_property(
-    TEST
-        pypamtest_test
-    PROPERTY
-        ENVIRONMENT ${TEST_ENVIRONMENT})
+if (PYTHONLIBS_FOUND)
+    add_test(pypamtest_test ${CMAKE_CURRENT_SOURCE_DIR}/pypamtest_test.py)
+    set_property(
+        TEST
+            pypamtest_test
+        PROPERTY
+            ENVIRONMENT ${TEST_ENVIRONMENT})
+endif()
