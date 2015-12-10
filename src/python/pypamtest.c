@@ -260,6 +260,10 @@ set_pypamtest_exception(PyObject *exc,
 	PyObject *obj = NULL;
 	/* repr_fmt is fixed and contains just %d expansions, so this is safe */
 	char test_repr[256] = { '\0' };
+	union {
+		char *str;
+		PyObject *obj;
+	} pypam_str_object;
 	const char *strerr;
 	const struct pam_testcase *failed = NULL;
 
@@ -291,7 +295,8 @@ set_pypamtest_exception(PyObject *exc,
 		PyErr_SetObject(exc, obj);
 	}
 
-	Py_XDECREF(test_repr);
+	pypam_str_object.str = test_repr;
+	Py_XDECREF(pypam_str_object.obj);
 	Py_XDECREF(obj);
 }
 
