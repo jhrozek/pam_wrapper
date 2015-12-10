@@ -70,7 +70,7 @@ enum pamtest_err _pamtest_conv(const char *service,
 	pam_handle_t *ph;
 	struct pam_conv conv;
 	size_t tcindex;
-	struct pam_testcase *tc;
+	struct pam_testcase *tc = NULL;
 	bool call_pam_end = true;
 
 	conv.conv = conv_fn;
@@ -101,7 +101,7 @@ enum pamtest_err _pamtest_conv(const char *service,
 		}
 	}
 
-	if (call_pam_end == true) {
+	if (call_pam_end == true && tc != NULL) {
 		rv = pam_end(ph, tc->op_rv);
 		if (rv != PAM_SUCCESS) {
 			return PAMTEST_ERR_END;
