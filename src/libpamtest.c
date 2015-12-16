@@ -266,8 +266,6 @@ static int pamtest_simple_conv(int num_msg,
 						free_reply(reply, num_msg);
 						return ret;
 					}
-				} else {
-					reply[ri].resp = NULL;
 				}
 				ri++;
 			}
