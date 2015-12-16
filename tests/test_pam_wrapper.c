@@ -403,16 +403,18 @@ static void test_pam_env_functions(void **state)
 
 static const char *string_in_list(char **list, const char *key)
 {
-	char key_eq[strlen(key)+1+1]; /* trailing NULL and '=' */
-
 	if (list == NULL || key == NULL) {
 		return NULL;
 	}
 
-	snprintf(key_eq, sizeof(key_eq), "%s=", key);
-	for (size_t i = 0; list[i] != NULL; i++) {
-		if (strncmp(list[i], key_eq, sizeof(key_eq)-1) == 0) {
-			return list[i] + sizeof(key_eq)-1;
+	if (strlen(key) > 0) {
+		char key_eq[strlen(key) + 1 + 1]; /* trailing = and '\0' */
+
+		snprintf(key_eq, sizeof(key_eq), "%s=", key);
+		for (size_t i = 0; list[i] != NULL; i++) {
+			if (strncmp(list[i], key_eq, sizeof(key_eq)-1) == 0) {
+				return list[i] + sizeof(key_eq)-1;
+			}
 		}
 	}
 
