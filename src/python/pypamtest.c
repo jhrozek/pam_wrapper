@@ -613,10 +613,6 @@ static PyObject *test_result_list_concat(PyObject *list,
 					   delim_post);
 #endif
 		Py_XDECREF(item);
-		if (item == NULL) {
-			PyMem_Free(res);
-			return NULL;
-		}
 	}
 
 	return res;
