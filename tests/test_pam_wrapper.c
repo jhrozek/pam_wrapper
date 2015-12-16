@@ -91,6 +91,7 @@ static int pwrap_conv(int num_msg, const struct pam_message **msgm,
 		case PAM_PROMPT_ECHO_OFF:
 			password = (const char *) cdata->authtoks[cdata->authtok_index];
 			if (password == NULL) {
+				free(reply);
 				return PAM_CONV_ERR;
 			}
 
