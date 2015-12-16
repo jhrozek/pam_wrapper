@@ -606,8 +606,12 @@ static int p_copy(const char *src, const char *dst, const char *pdir, mode_t mod
 
 	rc = 0;
 out:
-	close(srcfd);
-	close(dstfd);
+	if (srcfd != -1) {
+		close(srcfd);
+	}
+	if (dstfd != -1) {
+		close(dstfd);
+	}
 	if (rc < 0) {
 		unlink(dst);
 	}
