@@ -191,6 +191,20 @@ static int add_to_reply(struct pam_response *reply, const char *str)
 	return PAM_SUCCESS;
 }
 
+static void free_reply(struct pam_response *reply, int num_msg)
+{
+	int i;
+
+	if (reply == NULL) {
+		return;
+	}
+
+	for (i = 0; i < num_msg; i++) {
+		free(reply[i].resp);
+	}
+	free(reply);
+}
+
 static int pamtest_simple_conv(int num_msg,
 			       const struct pam_message **msgm,
 			       struct pam_response **response,
@@ -226,7 +240,7 @@ static int pamtest_simple_conv(int num_msg,
 				if (prompt != NULL) {
 					ret = add_to_reply(&reply[ri], prompt);
 					if (ret != PAM_SUCCESS) {
-						/* FIXME - free data? */
+						free_reply(reply, num_msg);
 						return ret;
 					}
 				} else {
@@ -241,6 +255,7 @@ static int pamtest_simple_conv(int num_msg,
 			prompt = (const char *) \
 				   cctx->data->in_echo_on[cctx->echo_on_idx];
 			if (prompt == NULL) {
+				free_reply(reply, num_msg);
 				return PAM_CONV_ERR;
 			}
 
@@ -248,7 +263,7 @@ static int pamtest_simple_conv(int num_msg,
 				if (prompt != NULL) {
 					ret = add_to_reply(&reply[ri], prompt);
 					if (ret != PAM_SUCCESS) {
-						/* FIXME - free data? */
+						free_reply(reply, num_msg);
 						return ret;
 					}
 				} else {
