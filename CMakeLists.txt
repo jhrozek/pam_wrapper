@@ -45,8 +45,11 @@ macro_ensure_out_of_source_build("${PROJECT_NAME} requires an out of source buil
 # Find out if we have threading available
 set(CMAKE_THREAD_PREFER_PTHREADS ON)
 find_package(Threads)
+
+find_package(PythonInterp)
 set(Python_ADDITIONAL_VERSIONS 2.6 2.7 3.3 3.4)
 find_package(PythonLibs)
+find_package(PythonSiteLibs)
 
 # config.h checks
 include(ConfigureChecks.cmake)
