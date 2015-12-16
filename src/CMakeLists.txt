@@ -15,7 +15,7 @@ if (HAVE_OPENPAM)
 	list(APPEND PAM_WRAPPER_LIBRARIES pam)
 endif (HAVE_OPENPAM)
 
-target_link_libraries(pam_wrapper ${PAM_WRAPPER_LIBRARIES})
+target_link_libraries(pam_wrapper ${PAM_WRAPPER_LIBRARIES} ${DLFCN_LIBRARY})
 
 set_target_properties(
   pam_wrapper

@@ -92,7 +92,7 @@ popd
 
 %check
 pushd obj
-make test
+ctest -V
 popd
 
 %files
