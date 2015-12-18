@@ -709,12 +709,18 @@ static void pwrap_clean_stale_dirs(const char *dir)
 		/* read the pidfile */
 		fd = open(pidfile, O_RDONLY);
 		if (fd < 0) {
+			PWRAP_LOG(PWRAP_LOG_ERROR,
+				  "Failed to open pidfile %s - error: %s",
+				  pidfile, strerror(errno));
 			return;
 		}
 
 		rc = read(fd, buf, sizeof(buf));
 		close(fd);
 		if (rc < 0) {
+			PWRAP_LOG(PWRAP_LOG_ERROR,
+				  "Failed to read pidfile %s - error: %s",
+				  pidfile, strerror(errno));
 			return;
 		}
 
@@ -722,6 +728,9 @@ static void pwrap_clean_stale_dirs(const char *dir)
 
 		tmp = strtol(buf, NULL, 10);
 		if (tmp == 0 || tmp > 0xFFFF || errno == ERANGE) {
+			PWRAP_LOG(PWRAP_LOG_ERROR,
+				  "Failed to parse pid, buf=%s",
+				  buf);
 			return;
 		}
 
@@ -776,7 +785,8 @@ static void pwrap_init(void)
 		rc = lstat(tmp_config_dir, &sb);
 		if (rc == 0) {
 			PWRAP_LOG(PWRAP_LOG_TRACE,
-				  "Check pam_wrapper dir %s already exists",
+				  "Check if pam_wrapper dir %s is a "
+				  "stale directory",
 				  tmp_config_dir);
 			pwrap_clean_stale_dirs(tmp_config_dir);
 			continue;
