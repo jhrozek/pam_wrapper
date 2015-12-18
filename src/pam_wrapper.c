@@ -714,7 +714,7 @@ static void pwrap_clean_stale_dirs(const char *dir)
 
 		rc = read(fd, buf, sizeof(buf));
 		close(fd);
-		if (rc <= 0) {
+		if (rc < 0) {
 			return;
 		}
 
