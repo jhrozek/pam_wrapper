@@ -1515,6 +1515,18 @@ void pam_syslog(const pam_handle_t *pamh,
 }
 #endif
 
+/* This might be called by pam_end() running with sshd */
+int audit_open(void);
+int audit_open(void)
+{
+	/*
+	 * Tell the application that the kernel doesn't
+	 * have audit compiled in.
+	 */
+	errno = EINVAL;
+	return -1;
+}
+
 /****************************
  * DESTRUCTOR
  ***************************/
