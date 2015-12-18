@@ -825,6 +825,7 @@ static void pwrap_init(void)
 	}
 
 	rc = fprintf(pidfile, "%d", getpid());
+	fclose(pidfile);
 	if (rc <= 0) {
 		p_rmdirs(pwrap.config_dir);
 		exit(1);
