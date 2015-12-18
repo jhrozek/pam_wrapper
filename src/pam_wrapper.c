@@ -729,6 +729,9 @@ static void pwrap_clean_stale_dirs(const char *dir)
 
 		rc = kill(pid, 0);
 		if (rc == -1) {
+			PWRAP_LOG(PWRAP_LOG_TRACE,
+				  "Remove stale pam_wrapper dir: %s",
+				  dir);
 			p_rmdirs(dir);
 		}
 	}
