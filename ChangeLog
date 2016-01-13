@@ -1,5 +1,11 @@
 ChangeLog
 ==========
 
-version 1.0.0 (released 2015-xx-xx)
+version 1.0.0 (released 2016-01-14)
   * Initial release
+    - pam_wrapper
+    - libpamtest
+    - pypamtest
+    - pam_matrix
+    - pam_get_items
+    - pam_set_items
