@@ -19,6 +19,8 @@
 #include "config.h"
 
 #include <sys/param.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include <pwd.h>
 #include <stdlib.h>
@@ -195,6 +197,7 @@ static int pam_matrix_lib_items_put(const char *db,
 				    struct pam_lib_items *pli)
 {
 	int rv;
+	mode_t old_mask;
 	FILE *fp = NULL;
 	FILE *fp_tmp = NULL;
 	char buf[BUFSIZ];
@@ -211,7 +214,9 @@ static int pam_matrix_lib_items_put(const char *db,
 	}
 
 	/* We don't support concurrent runs.. */
+	old_mask = umask(0);
 	rv = mkstemp(template);
+	umask(old_mask);
 	if (rv <= 0) {
 		rv = PAM_BUF_ERR;
 		goto done;
