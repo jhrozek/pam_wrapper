@@ -210,7 +210,7 @@ static int pamtest_simple_conv(int num_msg,
 			       struct pam_response **response,
 			       void *appdata_ptr)
 {
-	int i, ri;
+	int i, ri = 0;
 	int ret;
 	struct pam_response *reply = NULL;
 	const char *prompt;
@@ -227,7 +227,6 @@ static int pamtest_simple_conv(int num_msg,
 		if (reply == NULL) {
 			return PAM_CONV_ERR;
 		}
-		ri = 0;
 	}
 
 	for (i=0; i < num_msg; i++) {
