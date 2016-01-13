@@ -879,7 +879,7 @@ static void pwrap_init(void)
 		  "PAM path: %s",
 		  libpam_path);
 
-	ret = readlink(libpam_path, pam_library, sizeof(pam_library));
+	ret = readlink(libpam_path, pam_library, sizeof(pam_library) - 1);
 	PWRAP_LOG(PWRAP_LOG_TRACE,
 		  "PAM library: %s",
 		  pam_library);
