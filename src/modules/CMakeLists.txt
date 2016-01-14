@@ -1,4 +1,4 @@
-project(pam_wrapper-modules)
+project(pam_wrapper-modules C)
 
 set(PAM_MODULES pam_matrix pam_get_items pam_set_items)
 

@@ -1,4 +1,4 @@
-project(pypamtest)
+project(pypamtest C)
 
 include_directories(${CMAKE_BINARY_DIR})
 include_directories(${pam_wrapper-headers_DIR})
