@@ -1523,7 +1523,7 @@ int audit_open(void)
 	 * Tell the application that the kernel doesn't
 	 * have audit compiled in.
 	 */
-	errno = EINVAL;
+	errno = EPROTONOSUPPORT;
 	return -1;
 }
 
