@@ -214,7 +214,7 @@ static int pam_matrix_lib_items_put(const char *db,
 	}
 
 	/* We don't support concurrent runs.. */
-	old_mask = umask(0);
+	old_mask = umask(S_IRWXO | S_IRWXG);
 	rv = mkstemp(template);
 	umask(old_mask);
 	if (rv <= 0) {
