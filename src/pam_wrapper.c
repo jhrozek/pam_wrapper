@@ -533,32 +533,21 @@ static int p_copy(const char *src, const char *dst, const char *pdir, mode_t mod
 		return -1;
 	}
 
-	if (lstat(src, &sb) < 0) {
-		return -1;
-	}
-
-	if (S_ISDIR(sb.st_mode)) {
-		errno = EISDIR;
+	srcfd = open(src, O_RDONLY, 0);
+	if (srcfd < 0) {
 		return -1;
 	}
 
 	if (mode == 0) {
+		rc = fstat(srcfd, &sb);
+		if (rc != 0) {
+			return -1;
+		}
 		mode = sb.st_mode;
 	}
 
-	if (lstat(dst, &sb) == 0) {
-		if (S_ISDIR(sb.st_mode)) {
-			errno = EISDIR;
-			return -1;
-		}
-	}
-
-	if ((srcfd = open(src, O_RDONLY, 0)) < 0) {
-		rc = -1;
-		goto out;
-	}
-
-	if ((dstfd = open(dst, O_CREAT|O_WRONLY|O_TRUNC, mode)) < 0) {
+	dstfd = open(dst, O_CREAT|O_WRONLY|O_TRUNC, mode);
+	if (dstfd < 0) {
 		rc = -1;
 		goto out;
 	}
