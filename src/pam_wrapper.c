@@ -1533,72 +1533,73 @@ int audit_open(void)
  * DESTRUCTOR
  ***************************/
 
-static int p_rmdirs(const char *path)
+static int p_rmdirs_at(const char *path, int parent_fd)
 {
 	DIR *d;
 	struct dirent *dp;
 	struct stat sb;
-	char *fname;
+	int path_fd;
+	int rc;
 
-	if ((d = opendir(path)) != NULL) {
-		while(stat(path, &sb) == 0) {
-			/* if we can remove the directory we're done */
-			if (rmdir(path) == 0) {
-				break;
-			}
-			switch (errno) {
-				case ENOTEMPTY:
-				case EEXIST:
-				case EBADF:
-					break; /* continue */
-				default:
-					closedir(d);
-					return 0;
-			}
+	/* If path is absolute, parent_fd is ignored. */
+	PWRAP_LOG(PWRAP_LOG_TRACE,
+		  "p_rmdirs_at removing %s at %d\n", path, parent_fd);
 
-			while ((dp = readdir(d)) != NULL) {
-				size_t len;
-				/* skip '.' and '..' */
-				if (dp->d_name[0] == '.' &&
-				    (dp->d_name[1] == '\0' ||
-				     (dp->d_name[1] == '.' && dp->d_name[2] == '\0'))) {
-					continue;
-				}
-
-				len = strlen(path) + strlen(dp->d_name) + 2;
-				fname = malloc(len);
-				if (fname == NULL) {
-					closedir(d);
-					return -1;
-				}
-				snprintf(fname, len, "%s/%s", path, dp->d_name);
-
-				/* stat the file */
-				if (lstat(fname, &sb) != -1) {
-					if (S_ISDIR(sb.st_mode) && !S_ISLNK(sb.st_mode)) {
-						if (rmdir(fname) < 0) { /* can't be deleted */
-							if (errno == EACCES) {
-								closedir(d);
-								SAFE_FREE(fname);
-								return -1;
-							}
-							p_rmdirs(fname);
-						}
-					} else {
-						unlink(fname);
-					}
-				} /* lstat */
-				SAFE_FREE(fname);
-			} /* readdir */
-
-			rewinddir(d);
-		}
-	} else {
+	path_fd = openat(parent_fd,
+			 path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW);
+	if (path_fd == -1) {
 		return -1;
 	}
 
+	d = fdopendir(path_fd);
+	if (d == NULL) {
+		close(path_fd);
+		return -1;
+	}
+
+	while ((dp = readdir(d)) != NULL) {
+		/* skip '.' and '..' */
+		if (dp->d_name[0] == '.' &&
+			(dp->d_name[1] == '\0' ||
+			(dp->d_name[1] == '.' && dp->d_name[2] == '\0'))) {
+			continue;
+		}
+
+		rc = fstatat(path_fd, dp->d_name,
+			     &sb, AT_SYMLINK_NOFOLLOW);
+		if (rc != 0) {
+			continue;
+		}
+
+		if (S_ISDIR(sb.st_mode)) {
+			rc = p_rmdirs_at(dp->d_name, path_fd);
+		} else {
+			rc = unlinkat(path_fd, dp->d_name, 0);
+		}
+		if (rc != 0) {
+			continue;
+		}
+	}
 	closedir(d);
+
+	rc = unlinkat(parent_fd, path, AT_REMOVEDIR);
+	if (rc != 0) {
+		rc = errno;
+		PWRAP_LOG(PWRAP_LOG_TRACE,
+			  "cannot unlink %s error %d\n", path, rc);
+		return -1;
+	}
+
 	return 0;
+}
+
+static int p_rmdirs(const char *path)
+{
+	/*
+	 * If path is absolute, p_rmdirs_at ignores parent_fd.
+	 * If it's relative, start from cwd.
+	 */
+	return p_rmdirs_at(path, AT_FDCWD);
 }
 
 /*
