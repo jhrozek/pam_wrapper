@@ -899,6 +899,7 @@ static void pwrap_init(void)
 		char *dname;
 
 		strncpy(libpam_path_cp, libpam_path, sizeof(libpam_path_cp));
+		libpam_path_cp[sizeof(libpam_path_cp) - 1] = '\0';
 
 		dname = dirname(libpam_path_cp);
 		if (dname == NULL) {
