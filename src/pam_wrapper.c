@@ -695,58 +695,59 @@ static void pwrap_clean_stale_dirs(const char *dir)
 {
 	size_t len = strlen(dir);
 	char pidfile[len + 5];
-	struct stat sb;
 	ssize_t rc;
+	char buf[8] = {0};
+	long int tmp;
+	pid_t pid;
+	int fd;
 
 	snprintf(pidfile,
 		 sizeof(pidfile),
 		 "%s/pid",
 		 dir);
 
-	rc = lstat(pidfile, &sb);
-	if (rc == 0) {
-		char buf[8] = {0};
-		long int tmp;
-		pid_t pid;
-		int fd;
-
-		/* read the pidfile */
-		fd = open(pidfile, O_RDONLY);
-		if (fd < 0) {
+	/* read the pidfile */
+	fd = open(pidfile, O_RDONLY);
+	if (fd < 0) {
+		if (errno == ENOENT) {
+			PWRAP_LOG(PWRAP_LOG_TRACE,
+				  "pidfile %s missing, nothing to do\n",
+				  pidfile);
+		} else {
 			PWRAP_LOG(PWRAP_LOG_ERROR,
 				  "Failed to open pidfile %s - error: %s",
 				  pidfile, strerror(errno));
-			return;
 		}
+		return;
+	}
 
-		rc = read(fd, buf, sizeof(buf));
-		close(fd);
-		if (rc < 0) {
-			PWRAP_LOG(PWRAP_LOG_ERROR,
-				  "Failed to read pidfile %s - error: %s",
-				  pidfile, strerror(errno));
-			return;
-		}
+	rc = read(fd, buf, sizeof(buf));
+	close(fd);
+	if (rc < 0) {
+		PWRAP_LOG(PWRAP_LOG_ERROR,
+			  "Failed to read pidfile %s - error: %s",
+			  pidfile, strerror(errno));
+		return;
+	}
 
-		buf[sizeof(buf) - 1] = '\0';
+	buf[sizeof(buf) - 1] = '\0';
 
-		tmp = strtol(buf, NULL, 10);
-		if (tmp == 0 || tmp > 0xFFFF || errno == ERANGE) {
-			PWRAP_LOG(PWRAP_LOG_ERROR,
-				  "Failed to parse pid, buf=%s",
-				  buf);
-			return;
-		}
+	tmp = strtol(buf, NULL, 10);
+	if (tmp == 0 || tmp > 0xFFFF || errno == ERANGE) {
+		PWRAP_LOG(PWRAP_LOG_ERROR,
+			  "Failed to parse pid, buf=%s",
+			  buf);
+		return;
+	}
 
-		pid = (pid_t)(tmp & 0xFFFF);
+	pid = (pid_t)(tmp & 0xFFFF);
 
-		rc = kill(pid, 0);
-		if (rc == -1) {
-			PWRAP_LOG(PWRAP_LOG_TRACE,
-				  "Remove stale pam_wrapper dir: %s",
-				  dir);
-			p_rmdirs(dir);
-		}
+	rc = kill(pid, 0);
+	if (rc == -1) {
+		PWRAP_LOG(PWRAP_LOG_TRACE,
+			  "Remove stale pam_wrapper dir: %s",
+			  dir);
+		p_rmdirs(dir);
 	}
 
 	return;
