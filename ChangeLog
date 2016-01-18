@@ -1,6 +1,11 @@
 ChangeLog
 ==========
 
+version 1.0.1 (released 2016-01-18)
+  * Fixed issue with audit_open() and sshd
+  * Fixed several issues found by Coverity
+  * Fixed python linking issues
+
 version 1.0.0 (released 2016-01-14)
   * Initial release
     - pam_wrapper
