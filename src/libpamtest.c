@@ -294,9 +294,12 @@ static int pamtest_simple_conv(int num_msg,
 		}
 	}
 
-	if (response) {
+	if (response && ri > 0) {
 		*response = reply;
+	} else {
+		free(reply);
 	}
+
 	return PAM_SUCCESS;
 }
 
